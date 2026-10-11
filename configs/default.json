@@ -1,0 +1,67 @@
+{
+  "runtime": {
+    "seed": 42,
+    "mode": "quick",
+    "mixed_precision": "auto",
+    "output_dir": null
+  },
+  "data": {
+    "image_root": null,
+    "validation_root": null,
+    "nutrition_csv": null,
+    "nutrition5k_root": null,
+    "detection_weights": null,
+    "class_names_file": null,
+    "max_classes": null,
+    "validate_images": true
+  },
+  "splits": {
+    "val_fraction": 0.1,
+    "test_source": "validation",
+    "shuffle_seed": 42
+  },
+  "model": {
+    "architecture": "efficientnetb0",
+    "use_vit_fusion": false,
+    "vit_preset": "vit_base_patch16_224",
+    "img_size": 224,
+    "dropout": 0.3,
+    "num_classes": 101
+  },
+  "training": {
+    "batch_size": 32,
+    "epochs_head": 5,
+    "epochs_finetune": 10,
+    "quick_epochs": 1,
+    "quick_steps_per_epoch": 20,
+    "learning_rate_head": 0.001,
+    "learning_rate_finetune": 0.00001,
+    "label_smoothing": 0.1,
+    "early_stopping_patience": 5
+  },
+  "nutrition": {
+    "reference_quantity_g": 100.0,
+    "derive_per_100g": true,
+    "duplicate_resolution": "nearest_weight",
+    "require_class_match": true
+  },
+  "weight": {
+    "enable_regression": true,
+    "regression_backbone": "mobilenetv2",
+    "allow_experimental_depth": false,
+    "min_reliable_grams": 5.0,
+    "max_reliable_grams": 2000.0
+  },
+  "detection": {
+    "enabled": true,
+    "model": "yolo11n.pt",
+    "conf_threshold": 0.25,
+    "iou_threshold": 0.45,
+    "verify_class_names": true
+  },
+  "ui": {
+    "share": false,
+    "server_port": null,
+    "max_top_k": 3
+  }
+}

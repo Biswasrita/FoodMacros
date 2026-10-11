@@ -1,0 +1,18 @@
+# Core dependencies required for classification + nutrition (the parts that
+# run in every environment). Versions are minimums, not invented exact pins.
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.3
+tensorflow>=2.15
+Pillow>=10.0
+
+# ---------------------------------------------------------------------------
+# OPTIONAL dependencies. Install only what you need; the project degrades
+# gracefully and reports clearly when these are missing.
+#
+#   gradio>=4.0          # for the interactive UI (app/gradio_app.py)
+#   ultralytics>=8.0     # for YOLO food detection (detection module)
+#   torch>=2.0           # for depth models / ViT via timm (weight module)
+#   keras-hub>=0.13      # for the optional ViT fusion backbone
+#   pytest>=7.4          # for running the test suite
+# ---------------------------------------------------------------------------

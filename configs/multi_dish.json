@@ -1,0 +1,11 @@
+{
+  "detection": {
+    "enabled": true,
+    "model": "food_detector.pt",
+    "conf_threshold": 0.25,
+    "iou_threshold": 0.45,
+    "verify_class_names": false,
+    "max_dishes": 5,
+    "crop_padding": 0.08
+  }
+}

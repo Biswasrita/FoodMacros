@@ -1,0 +1,16 @@
+{
+  "note": "Approximate bulk/apparent densities (mass per unit apparent volume), in g/cm^3. These are ROUGH literature-style values provided ONLY for the experimental volume x density path, which is disabled by default. They are not measurements and must be replaced with validated values for any real use. A food with no entry yields 'unavailable' rather than a guessed number.",
+  "units": "g/cm^3",
+  "densities": {
+    "water": { "density_g_cm3": 1.0, "approximate": true, "note": "reference value" },
+    "soup": { "density_g_cm3": 1.0, "approximate": true, "note": "approx., water-like" },
+    "milk": { "density_g_cm3": 1.03, "approximate": true, "note": "approx." },
+    "cooked_rice": { "density_g_cm3": 0.8, "approximate": true, "note": "approx. bulk density" },
+    "cooked_pasta": { "density_g_cm3": 0.6, "approximate": true, "note": "approx. bulk density" },
+    "salad": { "density_g_cm3": 0.3, "approximate": true, "note": "approx., loose salad" },
+    "bread": { "density_g_cm3": 0.25, "approximate": true, "note": "approx." },
+    "pizza": { "density_g_cm3": 0.6, "approximate": true, "note": "approx." },
+    "cake": { "density_g_cm3": 0.5, "approximate": true, "note": "approx." },
+    "apple": { "density_g_cm3": 0.6, "approximate": true, "note": "approx., whole fruit" }
+  }
+}

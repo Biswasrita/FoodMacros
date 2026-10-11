@@ -1,0 +1,41 @@
+# Outputs and generated artifacts
+outputs/
+model_outputs/
+backups/
+
+# Large model files: keep the two runtime models tracked (via Git LFS),
+# ignore everything else of these types
+*.keras
+*.h5
+*.pt
+*.ckpt
+!models/classifier/classifier.keras
+!models/classifier/class_names.json
+!models/food_detector/food_detector.pt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Notebooks / editors
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Credentials / local files
+kaggle.json
+.env
+*.log
+
+# Local data: keep only the runtime nutrition table
+data/*
+!data/nutrition.csv
+
+# Root-level duplicate files (not committed)
+/nutrition.csv
+/Food_101_Nutrition_Fixed.ipynb
