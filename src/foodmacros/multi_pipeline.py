@@ -38,7 +38,8 @@ from .detection.yolo_detector import Detection, DetectionResult, YoloDetector
 from .nutrition.lookup import NutritionTable, VALID_STRATEGIES
 from .nutrition.portion import NUTRIENT_COLUMNS, scale_to_grams
 from .pipeline import NutritionOutcome
-from .weight.estimator import WeightEstimate, WeightEstimator
+from .weight.auto_weight import MiDaSDepthProvider, build_depth_provider
+from .weight.estimator import DepthEvidence, WeightEstimate, WeightEstimator
 
 DEFAULT_CLASSIFIER_DIR = PROJECT_ROOT / "models" / "classifier"
 DEFAULT_DETECTOR_WEIGHTS = PROJECT_ROOT / "models" / "food_detector" / "food_detector.pt"
@@ -77,6 +78,7 @@ class DishResult:
     prediction: Optional[PredictionResult] = None
     weight: Optional[WeightEstimate] = None
     nutrition: Optional[NutritionOutcome] = None
+    depth: Optional[DepthEvidence] = None
     notes: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
@@ -121,6 +123,7 @@ class MultiDishPipeline:
         detector: Optional[YoloDetector] = None,
         nutrition_table: Optional[NutritionTable] = None,
         weight_estimator: Optional[WeightEstimator] = None,
+        depth_provider=None,
     ) -> None:
         self.config = config
         self.classifier = classifier
@@ -128,6 +131,12 @@ class MultiDishPipeline:
         self.detector = detector
         self.nutrition_table = nutrition_table
         self.weight_estimator = weight_estimator or WeightEstimator(config)
+        self.depth_provider = depth_provider
+        if self.depth_provider is None:
+            try:
+                self.depth_provider = build_depth_provider(config, self.weight_estimator)
+            except Exception:
+                self.depth_provider = None
         self.notes: List[str] = []
         if classifier is None or not self.class_names:
             self.notes.append("No classifier loaded: dish classification is unavailable.")
@@ -248,7 +257,10 @@ class MultiDishPipeline:
 
     def _set_dish_weight(self, dish: DishResult, grams: Optional[float]) -> None:
         """(Re)compute a dish's weight + nutrition for ``grams`` (or None)."""
-        weight = self.weight_estimator.estimate(measured_grams=grams)
+        if grams is not None and str(grams).strip() != "":
+            weight = self.weight_estimator.estimate(measured_grams=grams)
+        else:
+            weight = self.weight_estimator.estimate(depth=dish.depth, food_label=dish.predicted_label)
         dish.weight = weight
         dish.nutrition = self._nutrition(dish.predicted_label, weight)
 
@@ -274,6 +286,34 @@ class MultiDishPipeline:
             return dish
 
         dish.prediction = self._classify_crop(crop, top_k)
+
+        depth = None
+        if (
+            self.config.weight.allow_experimental_depth
+            and self.depth_provider is not None
+            and detection is not None
+        ):
+            try:
+                mask = np.zeros(crop.shape[:2], dtype=bool)
+                x1, y1, x2, y2 = [int(round(float(v))) for v in box]
+                px = (x2 - x1) * float(crop_padding)
+                py = (y2 - y1) * float(crop_padding)
+                ix1 = max(0, int(np.floor(x1 - px)))
+                iy1 = max(0, int(np.floor(y1 - py)))
+                ix2 = min(int(crop.shape[1]), int(np.ceil(x2 + px)))
+                iy2 = min(int(crop.shape[0]), int(np.ceil(y2 + py)))
+                if ix2 > ix1 and iy2 > iy1:
+                    mask[iy1:iy2, ix1:ix2] = True
+                depth = self.depth_provider(crop, dish.predicted_label, food_mask=mask)
+            except Exception as exc:
+                dish.warnings.append(f"depth estimation failed: {exc}")
+        elif detection is None and self.config.weight.allow_experimental_depth and self.depth_provider is not None:
+            try:
+                depth = self.depth_provider(array, dish.predicted_label)
+            except Exception as exc:
+                dish.warnings.append(f"depth estimation failed: {exc}")
+
+        dish.depth = depth
         self._set_dish_weight(dish, None)
         return dish
 

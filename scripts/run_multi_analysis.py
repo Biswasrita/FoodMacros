@@ -58,14 +58,29 @@ def _parse_dish_grams(text):
     return grams
 
 
+def _apply_calibration_flags(config, args):
+    weight = config.weight
+    if args.cm_per_pixel is not None:
+        weight.cm_per_pixel = args.cm_per_pixel
+    if args.cm_per_depth_unit is not None:
+        weight.cm_per_depth_unit = args.cm_per_depth_unit
+    if args.reference_depth is not None:
+        weight.reference_depth = args.reference_depth
+    if args.invert_depth:
+        weight.invert_depth = True
+    if args.enable_depth_weight:
+        weight.allow_experimental_depth = True
+    return config
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Analyze a multi-dish food photo.")
     parser.add_argument("image", help="Path to the food image")
-    parser.add_argument("--measured", type=float, default=None, help="Measured plate weight (g)")
+    parser.add_argument("--measured", type=float, default=None, help="Advanced override: measured plate weight (g)")
     parser.add_argument(
         "--dish-grams",
         default=None,
-        help='Per-dish weights in grams, e.g. --dish-grams "120,80,60"',
+        help='Advanced override: per-dish weights in grams, e.g. --dish-grams "120,80,60"',
     )
     parser.add_argument("--top-k", type=int, default=3, help="Top-k predictions per dish")
     parser.add_argument("--max-dishes", type=int, default=None, help="Max dishes to analyze")
@@ -75,6 +90,11 @@ def main(argv=None) -> int:
     parser.add_argument("--nutrition-csv", default=None, help="Nutrition CSV path")
     parser.add_argument("--config", default=None, help="Path to a config JSON")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    parser.add_argument("--cm-per-pixel", type=float, default=None, help="Physical calibration: cm per pixel")
+    parser.add_argument("--cm-per-depth-unit", type=float, default=None, help="Physical calibration: cm per relative depth unit")
+    parser.add_argument("--reference-depth", type=float, default=None, help="Reference plane depth in MiDaS units")
+    parser.add_argument("--invert-depth", action="store_true", help="Invert depth orientation if needed")
+    parser.add_argument("--enable-depth-weight", action="store_true", help="Enable experimental depth weighting (requires calibration)")
     args = parser.parse_args(argv)
 
     if not Path(args.image).exists():
@@ -82,6 +102,7 @@ def main(argv=None) -> int:
         return 1
 
     config = load_config(args.config) if args.config else load_config()
+    config = _apply_calibration_flags(config, args)
     pipeline = MultiDishPipeline.from_defaults(
         config,
         model_dir=args.model_dir,

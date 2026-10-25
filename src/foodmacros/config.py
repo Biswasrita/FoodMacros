@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict
@@ -93,6 +94,30 @@ class WeightConfig:
     allow_experimental_depth: bool = False
     min_reliable_grams: float = 5.0
     max_reliable_grams: float = 2000.0
+    # Physical calibration for the experimental depth path. These are never
+    # assumed: when they are missing the depth path reports "unavailable".
+    # ``cm_per_pixel`` is the image-plane scale from a known-size reference and
+    # ``cm_per_depth_unit`` maps relative depth units to centimetres. When
+    # ``reference_depth`` is omitted the minimum depth in the crop is used as
+    # the reference plane and a warning is reported.
+    cm_per_pixel: float | None = None
+    cm_per_depth_unit: float | None = None
+    reference_depth: float | None = None
+    invert_depth: bool = False
+
+    def __post_init__(self) -> None:
+        for name in ("cm_per_pixel", "cm_per_depth_unit"):
+            value = getattr(self, name)
+            if value is None:
+                continue
+            if not isinstance(value, (int, float)) or not math.isfinite(float(value)) or float(value) <= 0:
+                raise ValueError(f"weight.{name} must be a positive, finite number when provided.")
+        if self.reference_depth is not None:
+            if (
+                not isinstance(self.reference_depth, (int, float))
+                or not math.isfinite(float(self.reference_depth))
+            ):
+                raise ValueError("weight.reference_depth must be a finite number when provided.")
 
 
 @dataclass

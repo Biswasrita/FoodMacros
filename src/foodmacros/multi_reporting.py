@@ -53,7 +53,7 @@ def format_multi_analysis(result) -> str:
     else:
         header = f"Plate totals ({result.totals_basis}"
         if result.total_grams is not None:
-            header += f", {result.total_grams:g} g"
+            header += f", {result.total_grams:g} g (estimated sum)"
         header += "):"
         lines.append(header)
         lines.append(format_nutrients(result.totals))
@@ -106,6 +106,7 @@ def multi_analysis_to_dict(result) -> Dict[str, object]:
                 ),
                 "reason": dish.nutrition.reason,
                 "note": dish.nutrition.note,
+                "is_reference": dish.nutrition.basis == "per_reference",
             }
         weight = None
         if dish.weight is not None:
@@ -114,6 +115,8 @@ def multi_analysis_to_dict(result) -> Dict[str, object]:
                 "grams": dish.weight.grams,
                 "method": dish.weight.method,
                 "confidence": dish.weight.confidence,
+                "warnings": list(dish.weight.warnings),
+                "details": dish.weight.details,
             }
         dishes.append(
             {

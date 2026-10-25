@@ -1,0 +1,8 @@
+.                                                                        [100%]
+============================== warnings summary ===============================
+tests/test_classification_train.py: 648 warnings
+  D:\Python311\Lib\site-packages\keras\src\backend\tensorflow\core.py:171: DeprecationWarning: __array__ implementation doesn't accept a copy keyword, so passing copy=False failed. __array__ must implement 'dtype' and 'copy' keyword arguments. To learn more, see the migration guide https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
+    return np.array(x)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 648 warnings in 135.42s (0:02:15)

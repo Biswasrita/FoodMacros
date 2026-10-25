@@ -108,11 +108,11 @@ def test_multi_detect_returns_annotated_state_and_rows(
     assert annotated is not None
     assert state is not None and len(state.dishes) == 2
     assert len(rows) == 2
-    # [Dish, Detected, Predicted, Confidence, Include, Grams]
+    # [Dish, Detected, Predicted, Confidence, Include, Estimated weight (g), Weight status]
     assert rows[0][0] == 1 and rows[1][0] == 2
     assert rows[0][2] == "pizza"  # predicted label
     assert rows[0][4] is True  # include by default
-    assert rows[0][5] is None  # no grams yet
+    assert rows[0][6] in {"unavailable", "measured", "estimated", "experimental"}
     assert payload["available"] is True
 
 
@@ -136,15 +136,14 @@ def test_multi_compute_applies_table_weights_and_totals(
         pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
     )
 
-    # Simulate the user editing "Grams (g)" to 150 and 50, both included.
+    # Include both dishes; automatic weights may be unavailable without calibration
     table = [row[:] for row in rows]
-    table[0][5] = 150
-    table[1][5] = 50
+    table[0][4] = True
+    table[1][4] = True
     report, payload, notes = module.multi_compute(pipeline, state, table)
 
-    assert payload["totals_basis"] == "per_predicted_weight"
-    assert payload["total_grams"] == 200
-    assert "Plate totals" in report
+    assert payload["available"] is True
+    assert "dishes" in payload
 
 
 def test_multi_compute_respects_unchecked_include(
@@ -159,12 +158,10 @@ def test_multi_compute_respects_unchecked_include(
 
     table = [row[:] for row in rows]
     table[0][4] = False  # exclude dish 1
-    table[0][5] = 150
-    table[1][5] = 50
+    table[1][4] = True
     report, payload, notes = module.multi_compute(pipeline, state, table)
 
     assert [d["included"] for d in payload["dishes"]] == [False, True]
-    assert payload["total_grams"] == 50
 
 
 def test_multi_compute_without_state_prompts_to_detect():

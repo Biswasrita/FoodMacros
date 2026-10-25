@@ -62,7 +62,13 @@ def format_analysis(result) -> str:
     lines.append(f"Weight         : {result.weight.summary()}")
 
     if result.nutrition.available:
-        lines.append(f"Macros ({result.nutrition.basis}, {result.nutrition.grams:g} g):")
+        basis = result.nutrition.basis
+        if basis == "per_reference":
+            lines.append(
+                f"Macros: REFERENCE for 100 g — NOT the detected portion's nutrition ({result.nutrition.grams:g} g):"
+            )
+        else:
+            lines.append(f"Macros ({basis}, {result.nutrition.grams:g} g):")
         lines.append(format_nutrients(result.nutrition.nutrients))
         if result.nutrition.note:
             lines.append(f"  note: {result.nutrition.note}")
@@ -108,6 +114,7 @@ def analysis_to_dict(result) -> Dict[str, object]:
         "per_100g": round_nutrients(result.nutrition.per_100g) if result.nutrition.available else None,
         "reason": result.nutrition.reason,
         "note": result.nutrition.note,
+        "is_reference": result.nutrition.basis == "per_reference",
     }
     return {
         "classification": prediction,
@@ -117,6 +124,8 @@ def analysis_to_dict(result) -> Dict[str, object]:
             "grams": result.weight.grams,
             "method": result.weight.method,
             "confidence": result.weight.confidence,
+            "warnings": list(result.weight.warnings),
+            "details": result.weight.details,
         },
         "nutrition": nutrition,
         "reference_quantity_g": result.reference_quantity_g,

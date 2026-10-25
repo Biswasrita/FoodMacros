@@ -28,6 +28,8 @@ class DepthEvidence:
     volume_cm3: Optional[float] = None
     density_g_cm3: Optional[float] = None
     reason: str = ""
+    density_approximate: bool = True
+    calibration: Optional[Dict[str, object]] = None
 
 
 @dataclass
@@ -79,7 +81,12 @@ class WeightEstimator:
                 False, volume_cm3=volume_cm3,
                 reason=f"no density entry for '{food_label}' (add one to enable the depth path)",
             )
-        return DepthEvidence(True, volume_cm3=volume_cm3, density_g_cm3=entry.density_g_cm3)
+        return DepthEvidence(
+            True,
+            volume_cm3=volume_cm3,
+            density_g_cm3=entry.density_g_cm3,
+            density_approximate=bool(entry.approximate),
+        )
 
     def estimate(
         self,
@@ -142,13 +149,24 @@ class WeightEstimator:
                 if grams is None:
                     warnings.append("depth evidence insufficient (missing metric volume or density)")
                 elif self._reliable(grams):
+                    warnings_for_estimate = list(warnings)
+                    if depth.density_approximate:
+                        warnings_for_estimate.append(
+                            "experimental estimate: relies on an approximate bulk density; "
+                            "it is not a measurement"
+                        )
                     return WeightEstimate(
                         "experimental", grams, "depth-volume-density", "low",
-                        warnings + [
-                            "experimental estimate: relies on approximate density "
-                            "and a calibration reference; not a measurement",
+                        warnings_for_estimate + [
+                            "experimental estimate: relies on a physical calibration "
+                            "reference; it is not a measurement",
                         ],
-                        {"volume_cm3": depth.volume_cm3, "density_g_cm3": depth.density_g_cm3},
+                        {
+                            "volume_cm3": depth.volume_cm3,
+                            "density_g_cm3": depth.density_g_cm3,
+                            "density_approximate": depth.density_approximate,
+                            "calibration": depth.calibration,
+                        },
                     )
                 else:
                     warnings.append(

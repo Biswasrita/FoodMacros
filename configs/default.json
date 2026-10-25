@@ -50,7 +50,11 @@
     "regression_backbone": "mobilenetv2",
     "allow_experimental_depth": false,
     "min_reliable_grams": 5.0,
-    "max_reliable_grams": 2000.0
+    "max_reliable_grams": 2000.0,
+    "cm_per_pixel": null,
+    "cm_per_depth_unit": null,
+    "reference_depth": null,
+    "invert_depth": false
   },
   "detection": {
     "enabled": true,

@@ -32,6 +32,31 @@ def cm_per_pixel_from_known_size(known_size_cm: float, known_size_pixels: float)
     return float(known_size_cm) / float(known_size_pixels)
 
 
+def cm_per_depth_unit_from_reference(
+    known_height_cm: float,
+    object_depth_units: float,
+    plane_depth_units: float,
+) -> float:
+    """Derive the depth scale from a reference object of known height.
+
+    ``object_depth_units`` and ``plane_depth_units`` are values from the same
+    relative-depth map. The difference must be positive (the object must stand
+    above the reference plane in the chosen orientation). This is an empirical
+    calibration for a specific camera/scene and must be validated.
+    """
+    if known_height_cm is None or known_height_cm <= 0:
+        raise ValueError("known_height_cm must be positive.")
+    if object_depth_units is None or plane_depth_units is None:
+        raise ValueError("object_depth_units and plane_depth_units are required.")
+    difference = float(object_depth_units) - float(plane_depth_units)
+    if difference <= 0:
+        raise ValueError(
+            "object_depth_units must be greater than plane_depth_units; "
+            "check the depth orientation (use invert_depth if needed)."
+        )
+    return float(known_height_cm) / difference
+
+
 def calibration_from_plate(
     plate_diameter_cm: float,
     plate_diameter_pixels: float,

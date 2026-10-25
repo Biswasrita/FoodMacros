@@ -36,9 +36,11 @@ from .config import AppConfig, PROJECT_ROOT
 from .data.discovery import ResolvedInputs, resolve_inputs
 from .data.preprocessing import ImageDecodeError, load_image
 from .data.splits import build_class_names
+from .detection.crop import crop_array, load_full_image
 from .detection.yolo_detector import DetectionResult, YoloDetector
 from .nutrition.lookup import NutritionTable, VALID_STRATEGIES
 from .nutrition.portion import scale_to_grams
+from .weight.auto_weight import MiDaSDepthProvider, build_depth_provider
 from .weight.estimator import WeightEstimate, WeightEstimator
 
 # Default runtime artifacts bundled with the project (project-relative). These
@@ -155,6 +157,11 @@ class FoodAnalysisPipeline:
         self.weight_estimator = weight_estimator or WeightEstimator(config)
         self.regression = regression
         self.depth_provider = depth_provider
+        if self.depth_provider is None:
+            try:
+                self.depth_provider = build_depth_provider(config, self.weight_estimator)
+            except Exception:
+                self.depth_provider = None
 
         self.notes: List[str] = []
         if classifier is None or not self.class_names:
@@ -306,11 +313,11 @@ class FoodAnalysisPipeline:
         except Exception:
             return None
 
-    def _depth_evidence(self, array, food_label, warnings: List[str]):
+    def _depth_evidence(self, array, food_label, warnings: List[str], mask=None):
         if not self.config.weight.allow_experimental_depth or self.depth_provider is None:
             return None
         try:
-            return self.depth_provider(array, food_label)
+            return self.depth_provider(array, food_label, food_mask=mask)
         except Exception as exc:
             warnings.append(f"depth provider failed: {exc}")
             return None
@@ -358,7 +365,43 @@ class FoodAnalysisPipeline:
 
         food_label = prediction.label if prediction.available else None
         regression_pred = self._regression_prediction(array)
-        depth = self._depth_evidence(array, food_label, warnings)
+
+        depth_array = None
+        depth_mask = None
+        if isinstance(image, (str, Path)):
+            try:
+                depth_array = load_full_image(image)
+            except Exception:
+                depth_array = None
+        elif array is not None:
+            depth_array = array
+
+        if (
+            self.config.weight.allow_experimental_depth
+            and depth_array is not None
+            and detection is not None
+            and detection.available
+            and detection.detections
+        ):
+            try:
+                best = max(detection.detections, key=lambda det: abs(det.box_xyxy[2] - det.box_xyxy[0]) * abs(det.box_xyxy[3] - det.box_xyxy[1]))
+                crop = crop_array(depth_array, best.box_xyxy, padding=self.config.detection.crop_padding)
+                depth_array = crop
+                x1, y1, x2, y2 = [int(round(float(v))) for v in best.box_xyxy]
+                px = (x2 - x1) * float(self.config.detection.crop_padding)
+                py = (y2 - y1) * float(self.config.detection.crop_padding)
+                ix1 = max(0, int(np.floor(x1 - px)))
+                iy1 = max(0, int(np.floor(y1 - py)))
+                ix2 = min(int(crop.shape[1]), int(np.ceil(x2 + px)))
+                iy2 = min(int(crop.shape[0]), int(np.ceil(y2 + py)))
+                mask = np.zeros(crop.shape[:2], dtype=bool)
+                if ix2 > ix1 and iy2 > iy1:
+                    mask[iy1:iy2, ix1:ix2] = True
+                depth_mask = mask
+            except Exception as exc:
+                warnings.append(f"depth crop preparation failed: {exc}")
+
+        depth = self._depth_evidence(depth_array, food_label, warnings, mask=depth_mask)
 
         weight = self.weight_estimator.estimate(
             measured_grams=measured_grams,
