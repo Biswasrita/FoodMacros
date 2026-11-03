@@ -131,6 +131,68 @@ Not verified here (needs a dataset/GPU this machine does not have):
 More detail is in `docs/RUN_AND_TROUBLESHOOT.md` and
 `docs/PROJECT_GUIDE.md`.
 
+## Weight estimation (RGB-only, Nutrition5k)
+
+This project supports **RGB-only food weight estimation** using the Nutrition5k dataset.
+
+### How it works
+```
+Nutrition5k RGB image (rgb.png)
+          +
+Nutrition5k measured total_mass (from dish_metadata_cafe1.csv / dish_metadata_cafe2.csv)
+          ↓
+   dataset construction (matched by dish_id)
+          ↓
+    train/val/test split by dish_id (no leakage)
+          ↓
+     MobileNetV2 regression (ImageNet pretrained)
+          ↓
+     estimated mass in grams
+```
+
+- **Labels come from Nutrition5k**: `total_mass` in grams from metadata files, joined by `dish_id` to `imagery/realsense_overhead/<dish_id>/rgb.png`. Only `rgb.png` is used (no depth/MiDaS).
+- **RGB-only baseline**: This is the first experiment (`RGB → mass_g`). Depth/MiDaS can be added later for comparison.
+- **Dish-level splitting**: Splits are done by unique `dish_id` to prevent leakage between train/validation/test sets.
+- **Normalization**: Targets are normalized using training split statistics only; predictions are denormalized back to grams.
+
+### Download Nutrition5k
+Download from the [Nutrition5k GCS bucket](https://console.cloud.google.com/storage/browser/nutrition5k_dataset/nutrition5k_dataset). Recommended CLI:
+```bash
+gsutil -m cp -r gs://nutrition5k_dataset/nutrition5k_dataset/ ./nutrition5k/
+# or
+gcloud storage cp -r gs://nutrition5k_dataset/nutrition5k_dataset/ ./nutrition5k/
+```
+
+Expected layout:
+```
+nutrition5k/
+├── imagery/realsense_overhead/dish_*/rgb.png
+└── metadata/dish_metadata_cafe1.csv, dish_metadata_cafe2.csv
+```
+
+Point to it via `--nutrition5k /path/to/nutrition5k` or set `data.nutrition5k_root` in config.
+
+### Train
+```bash
+python scripts/train_weight.py --nutrition5k /path/to/nutrition5k --output models/weight
+```
+
+This will:
+1. Build the dataset CSV from metadata + rgb.png (reporting counts of metadata dishes, images found, valid pairs, skipped)
+2. Create dish-level train/validation/test splits (70/15/15) in `artifacts/weight_dataset/`
+3. Train MobileNetV2 mass regressor (grams only), save best model
+4. Evaluate on test set (MAE/RMSE/R²/MAPE in grams), compare to mean-baseline, generate plots in `artifacts/weight_evaluation/`
+5. Save `models/weight/mass_regressor.keras`, `normalization.json`, `config.json`, `test_metrics.json`
+
+### Predict on a new image
+```bash
+python scripts/predict_weight.py --image /path/to/food.jpg --model models/weight
+```
+Output: `Estimated food weight: XXX.X g`. No Nutrition5k metadata or depth required at inference.
+
+### Integration
+Once trained, the artifacts in `models/weight` are picked up automatically when `weight.enable_regression` is true (no extra flag needed for the Gradio app). You can also point at another directory explicitly with `FoodAnalysisPipeline.from_artifacts(..., mass_regressor_dir=...)` or `python app/gradio_app.py --regressor-dir <dir>`. The predicted grams are passed to the nutrition calculator for scaling; a user-supplied measured weight always takes precedence.
+
 ## A note on the training notebook
 
 The real training run lives at

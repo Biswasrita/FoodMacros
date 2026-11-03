@@ -1,9 +1,9 @@
 """Nutrition5k-based mass & macronutrient regression (portion-weight source).
 
-Predicts a dish's total mass (and fat/carb/protein/calories) from a top-down
-image. This is the *evidence-based* weight route. It is only usable when a
-Nutrition5k-style dataset (dish metadata + overhead RGB images) is attached;
-otherwise every entry point reports "unavailable" with a clear reason.
+Predicts a dish's total mass (and optionally fat/carb/protein/calories) from a
+top-down image. This is the *evidence-based* weight route. It is only usable
+when a Nutrition5k-style dataset (dish metadata + overhead RGB images) is
+attached; otherwise every entry point reports "unavailable" with a clear reason.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import pandas as pd
 
 # Nutrition5k metadata targets (grams / kcal).
 TARGET_COLUMNS = ["total_mass", "total_calories", "total_fat", "total_carb", "total_protein"]
+MASS_ONLY_TARGETS = ["total_mass"]
 REQUIRED_METADATA_COLUMNS = ["dish_id"] + TARGET_COLUMNS
 DEFAULT_IMAGE_SUBDIR = "realsense_overhead"
 DEFAULT_IMAGE_NAME = "rgb.png"
@@ -164,6 +165,34 @@ def build_regression_model(
     return model, base
 
 
+def build_mass_only_regressor(
+    img_size: int = 224,
+    backbone: str = "mobilenetv2",
+    weights: str | None = "imagenet",
+):
+    """Build a mass-only regressor (single output in grams, normalized)."""
+    import tensorflow as tf
+
+    apps = tf.keras.applications
+    kwargs = dict(include_top=False, weights=weights, input_shape=(img_size, img_size, 3))
+    if backbone == "mobilenetv2":
+        base = apps.MobileNetV2(**kwargs)
+    elif backbone == "efficientnetb0":
+        base = apps.EfficientNetB0(**kwargs)
+    else:
+        raise ValueError(f"Unsupported regression backbone '{backbone}'.")
+
+    inputs = tf.keras.Input(shape=(img_size, img_size, 3), name="image")
+    x = base(inputs)
+    x = tf.keras.layers.GlobalAveragePooling2D(name="gap")(x)
+    x = tf.keras.layers.Dropout(0.2, name="dropout")(x)
+    x = tf.keras.layers.Dense(128, activation="relu", name="head_dense")(x)
+    x = tf.keras.layers.Dropout(0.2, name="head_dropout")(x)
+    outputs = tf.keras.layers.Dense(1, name="mass_g")(x)
+    model = tf.keras.Model(inputs, outputs, name=f"{backbone}_mass_regressor")
+    return model, base
+
+
 def get_regression_preprocess_input(backbone: str = "mobilenetv2"):
     import tensorflow as tf
 
@@ -221,17 +250,59 @@ def predict_mass(
     if array.shape[0] != img_size or array.shape[1] != img_size:
         array = tf.image.resize(array, (img_size, img_size)).numpy()
     x = preprocess_fn(array.astype(np.float32)) if preprocess_fn is not None else array.astype(np.float32)
-    vector = np.asarray(model.predict(x[None, ...], verbose=0))[0]
-    nutrients = denormalize_targets(vector, stats)
-    return MassPrediction(
-        available=True,
-        total_mass_g=nutrients["total_mass"],
-        calories=nutrients["total_calories"],
-        fat_g=nutrients["total_fat"],
-        carb_g=nutrients["total_carb"],
-        protein_g=nutrients["total_protein"],
-        reason="",
-    )
+    pred = model.predict(x[None, ...], verbose=0)
+    pred_arr = np.asarray(pred)
+    # Mass-only model: output shape (1,1) or (1,)
+    if pred_arr.shape[-1] == 1 and (len(stats) == 1 or ("total_mass" in stats and len(stats) == 1)):
+        val = float(pred_arr.reshape(-1)[0])
+        if "total_mass" in stats:
+            mean, std = stats["total_mass"]
+            mass_g = val * std + mean
+        else:
+            # try first
+            k = list(stats.keys())[0]
+            mean, std = stats[k]
+            mass_g = val * std + mean
+        return MassPrediction(
+            available=True,
+            total_mass_g=float(mass_g),
+            calories=None,
+            fat_g=None,
+            carb_g=None,
+            protein_g=None,
+            reason="",
+        )
+    vector = pred_arr[0]
+    try:
+        nutrients = denormalize_targets(vector, stats)
+        return MassPrediction(
+            available=True,
+            total_mass_g=nutrients.get("total_mass"),
+            calories=nutrients.get("total_calories"),
+            fat_g=nutrients.get("total_fat"),
+            carb_g=nutrients.get("total_carb"),
+            protein_g=nutrients.get("total_protein"),
+            reason="",
+        )
+    except Exception as e:
+        return MassPrediction(False, reason=str(e))
+
+
+def predict_mass_only_from_array(model, preprocess_fn, image_rgb, img_size: int, mean: float, std: float):
+    """Predict mass in grams from RGB array for mass-only model."""
+    import tensorflow as tf
+
+    array = np.asarray(image_rgb)
+    if array.ndim != 3 or array.shape[-1] != 3:
+        raise ValueError("image must be an HxWx3 RGB array.")
+    if array.shape[0] != img_size or array.shape[1] != img_size:
+        array = tf.image.resize(array, (img_size, img_size)).numpy()
+    x = preprocess_fn(array.astype(np.float32)) if preprocess_fn is not None else array.astype(np.float32)
+    pred = model.predict(x[None, ...], verbose=0)
+    val = float(np.asarray(pred).reshape(-1)[0])
+    mass_g = val * float(std) + float(mean)
+    return float(mass_g)
+
 
 
 def train_mass_regressor(

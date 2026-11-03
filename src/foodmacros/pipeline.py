@@ -48,6 +48,12 @@ DEFAULT_CLASSIFIER_DIR: Path = PROJECT_ROOT / "models" / "classifier"
 DEFAULT_DETECTOR_WEIGHTS: Path = (
     PROJECT_ROOT / "models" / "food_detector" / "food_detector.pt"
 )
+DEFAULT_REGRESSOR_DIR: Path = PROJECT_ROOT / "models" / "weight"
+REGRESSOR_FILENAMES = (
+    "mass_regressor.keras",
+    "mass_only_regressor.keras",
+    "regressor.keras",
+)
 
 
 def _is_bundled_detector(path: str | Path | None) -> bool:
@@ -90,6 +96,20 @@ def _resolve_default_artifacts(
     return classifier_dir, detection_weights, notes
 
 
+def _resolve_regressor_dir(mass_regressor_dir=None) -> Optional[Path]:
+    """Explicit regressor dir wins; otherwise use the bundled one if trained.
+
+    The RGB-only Nutrition5k regressor is trained into ``models/weight`` by
+    ``scripts/train_weight.py``. Once those artifacts exist the pipeline picks
+    them up automatically; until then weight stays measured-only.
+    """
+    if mass_regressor_dir:
+        return Path(mass_regressor_dir)
+    if any((DEFAULT_REGRESSOR_DIR / name).exists() for name in REGRESSOR_FILENAMES):
+        return DEFAULT_REGRESSOR_DIR
+    return None
+
+
 @dataclass
 class NutritionOutcome:
     available: bool
@@ -114,24 +134,75 @@ class AnalysisResult:
 
 
 def _load_regression(model_dir: str | Path, config: AppConfig) -> Optional[Dict[str, Any]]:
-    """Load a saved mass regressor + normalisation stats, if both exist."""
+    """Load a saved mass regressor + normalisation stats, if both exist.
+
+    Supports both the mass-only artifacts written by ``scripts/train_weight.py``
+    (``mass_regressor.keras`` + ``normalization.json``) and the multi-target
+    artifacts (``regression_norm_stats.json``). The input size and preprocessing
+    are taken from the saved model/``config.json`` so they can never drift from
+    the weights.
+    """
     from .weight.regression import get_regression_preprocess_input
 
     model_dir = Path(model_dir)
-    model_path = model_dir / "mass_regressor.keras"
-    stats_path = model_dir / "regression_norm_stats.json"
-    if not model_path.exists() or not stats_path.exists():
+    model_path = next(
+        (model_dir / name for name in REGRESSOR_FILENAMES if (model_dir / name).exists()),
+        None,
+    )
+    if model_path is None:
         return None
+
+    # Look for stats: multi-target first, then the mass-only normalisation file.
+    stats_path = model_dir / "regression_norm_stats.json"
+    norm_path = model_dir / "normalization.json"
+    stats = None
+    if stats_path.exists():
+        try:
+            raw = json.loads(stats_path.read_text(encoding="utf-8"))
+            if "stats" in raw:
+                stats = {k: (float(v[0]), float(v[1])) for k, v in raw["stats"].items()}
+        except Exception:
+            stats = None
+    if stats is None and norm_path.exists():
+        try:
+            raw = json.loads(norm_path.read_text(encoding="utf-8"))
+            if "mean" in raw:
+                mean = float(raw["mean"])
+                std = float(raw.get("std", 1.0)) or 1.0
+                stats = {"total_mass": (mean, std)}
+        except Exception:
+            stats = None
+    if stats is None:
+        return None
+
+    # Optional training recipe saved next to the weights.
+    img_size = config.model.img_size
+    backbone = config.weight.regression_backbone
+    reg_config_path = model_dir / "config.json"
+    if reg_config_path.exists():
+        try:
+            raw = json.loads(reg_config_path.read_text(encoding="utf-8"))
+            img_size = int(raw.get("img_size", img_size))
+            backbone = str(raw.get("backbone", backbone))
+        except Exception:
+            pass
+
     import tensorflow as tf
 
-    model = tf.keras.models.load_model(model_path, compile=False)
-    raw = json.loads(stats_path.read_text(encoding="utf-8"))
-    stats = {k: (float(v[0]), float(v[1])) for k, v in raw["stats"].items()}
+    try:
+        model = tf.keras.models.load_model(model_path, compile=False)
+    except Exception:
+        return None
+
+    input_shape = getattr(model, "input_shape", None)
+    if isinstance(input_shape, tuple) and len(input_shape) == 4 and input_shape[1]:
+        img_size = int(input_shape[1])
+
     return {
         "model": model,
         "stats": stats,
-        "img_size": config.model.img_size,
-        "preprocess_fn": get_regression_preprocess_input(config.weight.regression_backbone),
+        "img_size": img_size,
+        "preprocess_fn": get_regression_preprocess_input(backbone),
     }
 
 
@@ -255,7 +326,7 @@ class FoodAnalysisPipeline:
             model_dir=model_dir,
             nutrition_csv=resolved.nutrition_csv,
             detection_weights=detection_weights,
-            mass_regressor_dir=mass_regressor_dir,
+            mass_regressor_dir=_resolve_regressor_dir(mass_regressor_dir),
             expected_classes=class_names,
         )
         pipeline.notes.extend(notes)
