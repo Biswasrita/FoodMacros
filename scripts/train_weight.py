@@ -157,13 +157,59 @@ def main(argv=None) -> int:
     ]
     print("\nTraining head...")
     history = model.fit(train_ds, validation_data=val_ds, epochs=args.epochs, callbacks=callbacks, verbose=1)
+    histories = {"head": history.history}
 
     if args.fine_tune:
         print("\nFine-tuning top layers...")
         for layer in base.layers[-30:]:
             layer.trainable = True
         model.compile(optimizer=tf.keras.optimizers.Adam(args.lr / 10), loss="mse", metrics=["mae"])
-        model.fit(train_ds, validation_data=val_ds, epochs=max(10, args.epochs // 5), callbacks=callbacks, verbose=1)
+        fine_history = model.fit(
+            train_ds,
+            validation_data=val_ds,
+            epochs=max(10, args.epochs // 5),
+            callbacks=callbacks,
+            verbose=1,
+        )
+        histories["fine_tune"] = fine_history.history
+
+    eval_dir = Path(args.eval_plots)
+    eval_dir.mkdir(parents=True, exist_ok=True)
+    (eval_dir / "history.json").write_text(json.dumps(histories, indent=2), encoding="utf-8")
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        plt.figure(figsize=(12, 4))
+        offset = 0
+        for phase, hist in histories.items():
+            epochs_range = range(offset + 1, offset + len(hist["loss"]) + 1)
+            plt.subplot(1, 2, 1)
+            plt.plot(epochs_range, hist["loss"], label=f"{phase} train loss")
+            plt.plot(epochs_range, hist.get("val_loss", []), label=f"{phase} val loss")
+            plt.subplot(1, 2, 2)
+            plt.plot(epochs_range, hist["mae"], label=f"{phase} train MAE")
+            plt.plot(epochs_range, hist.get("val_mae", []), label=f"{phase} val MAE")
+            offset += len(hist["loss"])
+        plt.subplot(1, 2, 1)
+        plt.xlabel("Epoch")
+        plt.ylabel("MSE loss")
+        plt.legend()
+        plt.title("Training / validation loss")
+        plt.subplot(1, 2, 2)
+        plt.xlabel("Epoch")
+        plt.ylabel("MAE (normalized)")
+        plt.legend()
+        plt.title("Training / validation MAE")
+        plt.tight_layout()
+        plt.savefig(eval_dir / "training_curves.png")
+        plt.close()
+        print(f"\nSaved training history to {eval_dir / 'history.json'}")
+        print(f"Saved training curves to {eval_dir / 'training_curves.png'}")
+    except Exception as exc:
+        print(f"Training curve plotting skipped: {exc}")
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)

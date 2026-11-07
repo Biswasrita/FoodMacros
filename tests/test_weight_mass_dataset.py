@@ -41,6 +41,39 @@ def test_load_metadata_both_cafes(tmp_path):
     assert set(df["dish_id"]) == {"A", "B"}
 
 
+def test_load_headerless_ragged_metadata(tmp_path):
+    root = tmp_path / "n5k"
+    root.mkdir()
+    rows = [
+        "dish_1,320,450,12,55,25,1.2,3.4,5.6",
+        "dish_2,180,210,6,20,9",
+    ]
+    (root / "dish_metadata_cafe1.csv").write_text("\n".join(rows), encoding="utf-8")
+    df = mass_dataset.load_nutrition5k_mass_metadata(root)
+    assert set(df["dish_id"]) == {"dish_1", "dish_2"}
+    assert list(df["total_mass"]) == [320.0, 180.0]
+
+
+def test_build_weight_dataset_double_nested_images(tmp_path, image_factory):
+    root = tmp_path / "n5k"
+    root.mkdir()
+    (root / "dish_metadata_cafe1.csv").write_text(
+        "dish_1,320,450,12,55,25\n", encoding="utf-8"
+    )
+    image_factory(
+        root
+        / "imagery"
+        / "realsense_overhead"
+        / "realsense_overhead"
+        / "dish_1"
+        / "rgb.png"
+    )
+    df, stats = mass_dataset.build_weight_dataset(root)
+    assert len(df) == 1
+    assert stats["rgb_images_found"] == 1
+    assert stats["missing_images"] == 0
+
+
 def test_build_weight_dataset_skips_missing(nutrition5k_tree):
     df, stats = mass_dataset.build_weight_dataset(nutrition5k_tree)
     assert len(df) == 2

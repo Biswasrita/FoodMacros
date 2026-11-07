@@ -19,6 +19,35 @@ import pandas as pd
 
 DEFAULT_IMAGE_SUBDIR = "realsense_overhead"
 DEFAULT_IMAGE_NAME = "rgb.png"
+METADATA_COLUMNS = [
+    "dish_id",
+    "total_mass",
+    "total_calories",
+    "total_fat",
+    "total_carb",
+    "total_protein",
+]
+
+
+def _read_metadata_csv(path: Path) -> pd.DataFrame:
+    """Read Nutrition5k metadata with or without a header row.
+
+    The distributed ``dish_metadata_cafe*.csv`` files are headerless and contain
+    a variable number of trailing micronutrient fields. Reading them without
+    ``usecols`` raises a ParserError, so restrict parsing to the six columns we
+    actually need.
+    """
+    with path.open("r", encoding="utf-8-sig", errors="replace") as handle:
+        first_line = handle.readline().strip()
+    first_field = first_line.split(",", 1)[0].strip().lower()
+    if first_field == "dish_id":
+        return pd.read_csv(path)
+    return pd.read_csv(
+        path,
+        header=None,
+        usecols=range(len(METADATA_COLUMNS)),
+        names=METADATA_COLUMNS,
+    )
 
 
 @dataclass
@@ -68,7 +97,7 @@ def load_nutrition5k_mass_metadata(nutrition5k_root: str | Path) -> pd.DataFrame
     frames = []
     for f in files:
         try:
-            df = pd.read_csv(f)
+            df = _read_metadata_csv(f)
             frames.append(df)
         except Exception:
             continue
@@ -114,6 +143,7 @@ def build_weight_dataset(
 
     patterns = [
         str(root / "imagery" / image_subdir / "*" / image_name),
+        str(root / "imagery" / image_subdir / image_subdir / "*" / image_name),
         str(root / image_subdir / "*" / image_name),
         str(root / "*" / "*" / image_name),
     ]
@@ -139,6 +169,7 @@ def build_weight_dataset(
         img_path = None
         candidates = [
             root / "imagery" / image_subdir / dish_id / image_name,
+            root / "imagery" / image_subdir / image_subdir / dish_id / image_name,
             root / image_subdir / dish_id / image_name,
             root / dish_id / image_name,
         ]
