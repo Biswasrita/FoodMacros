@@ -128,9 +128,11 @@ python app/gradio_app.py --port 7861
 python app/gradio_app.py --share      # temporary public link
 ```
 
-- Opens **Single dish** and **Multiple dishes** tabs at `http://127.0.0.1:7860`.
-- The multi-dish tab is a two-step flow: **1) Detect & classify**, then fill in
-  the **Grams (g)** column and click **2) Compute nutrition & total**.
+- Opens a dashboard with **Single Dish**, **Multi-Dish**, and **About**
+  navigation at `http://127.0.0.1:7860`.
+- The multi-dish view is a two-step flow: click **Analyze Plate**, then enter
+  measured values in the **Edit Weight (g)** column (or untick **Include**) and
+  click **Recompute Nutrition**.
 - `--share` prints a temporary public URL (valid ~72h per Gradio) - useful for
   demos, not for permanent hosting.
 
@@ -140,7 +142,7 @@ python app/gradio_app.py --share      # temporary public link
 python -m pytest tests -q
 ```
 
-Expected result: **192 passed, 2 skipped** (194 test functions). No extra setup
+Expected result: **202 passed, 2 skipped** (204 test functions). No extra setup
 is needed - `tests/conftest.py` puts `src/` on the path for you.
 
 ### Re-train the classifier (optional, needs the dataset + GPU)

@@ -164,6 +164,67 @@ def test_multi_dish_predicts_weight_per_dish_and_measured_overrides(
     assert updated.total_grams == pytest.approx(240.0)
 
 
+def test_apply_weights_does_not_mutate_detection_result(
+    config, synthetic_nutrition_csv
+):
+    detector = _FakeDetector(
+        lambda w, h: [(0, 0, w // 2, h), (w // 2, 0, w, h)]
+    )
+    pipeline = MultiDishPipeline(
+        config=config,
+        classifier=_FakeClassifier((0.1, 0.2, 0.7)),
+        class_names=["apple_pie", "bibimbap", "pizza"],
+        detector=detector,
+        nutrition_table=NutritionTable.from_csv(synthetic_nutrition_csv),
+        regression=_stub_regression(mean=150.0),
+    )
+    image = np.zeros((64, 64, 3), dtype=np.uint8)
+
+    base = pipeline.analyze(image, max_dishes=2)
+    updated = pipeline.apply_weights(base, per_dish_grams=[90, None])
+
+    # The applied result reflects the override + automatic fallback...
+    assert updated.dishes[0].weight.status == "measured"
+    assert updated.dishes[0].weight.grams == pytest.approx(90.0)
+    assert updated.dishes[1].weight.status == "estimated"
+    assert updated.dishes[1].weight.grams == pytest.approx(150.0)
+    # ...while the detection result kept in UI state is untouched.
+    assert base.dishes[0].weight.status == "estimated"
+    assert base.dishes[0].weight.grams == pytest.approx(150.0)
+    assert base.dishes[1].weight.status == "estimated"
+    assert base.dishes[1].weight.grams == pytest.approx(150.0)
+
+
+def test_apply_weights_blank_reverts_to_automatic_regression(
+    config, synthetic_nutrition_csv
+):
+    detector = _FakeDetector(
+        lambda w, h: [(0, 0, w // 2, h), (w // 2, 0, w, h)]
+    )
+    pipeline = MultiDishPipeline(
+        config=config,
+        classifier=_FakeClassifier((0.1, 0.2, 0.7)),
+        class_names=["apple_pie", "bibimbap", "pizza"],
+        detector=detector,
+        nutrition_table=NutritionTable.from_csv(synthetic_nutrition_csv),
+        regression=_stub_regression(mean=150.0),
+    )
+    image = np.zeros((64, 64, 3), dtype=np.uint8)
+
+    base = pipeline.analyze(image, max_dishes=2)
+    manual = pipeline.apply_weights(base, per_dish_grams=[90, 80])
+    assert all(d.weight.status == "measured" for d in manual.dishes)
+
+    reverted = pipeline.apply_weights(manual, per_dish_grams=[None, None])
+
+    assert all(d.weight.status == "estimated" for d in reverted.dishes)
+    assert [d.weight.grams for d in reverted.dishes] == [
+        pytest.approx(150.0),
+        pytest.approx(150.0),
+    ]
+    assert reverted.total_grams == pytest.approx(300.0)
+
+
 def test_multi_dish_defaults_load_bundled_regressor(config):
     pytest.importorskip("tensorflow")
     if not BUNDLED_MODEL.exists():

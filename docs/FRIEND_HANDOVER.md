@@ -80,7 +80,7 @@ Tests: `python -m pytest tests -q` → **192 passed, 2 skipped**.
 - `src/foodmacros/` - the reusable package. Small, independent modules:
   `classification/`, `detection/`, `nutrition/`, `weight/`, `data/`, plus
   `config.py`, `pipeline.py`, `multi_pipeline.py`, `reporting.py`.
-- `app/gradio_app.py` - the web UI (two tabs: Single dish / Multiple dishes).
+- `app/gradio_app.py` - the dashboard UI (Single Dish / Multi-Dish / About).
 - `scripts/` - CLI tools: `inspect_inputs`, `smoke_test`, `run_analysis`,
   `run_multi_analysis`, `train_classifier`, `predict_weight`, `train_weight`.
 - `configs/` - JSON settings. Everything starts from `default.json`.

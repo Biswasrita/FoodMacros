@@ -9,7 +9,7 @@ photo, detected and analyzed separately).
 
 | Interface | What it does |
 |---|---|
-| `app/gradio_app.py` | A friendly web UI with a **Single dish** tab and a **Multiple dishes** tab |
+| `app/gradio_app.py` | A dashboard UI with **Single Dish**, **Multi-Dish**, and **About** navigation |
 | `scripts/run_analysis.py` | Command-line analysis of one food image |
 | `scripts/run_multi_analysis.py` | Command-line analysis of a photo with several dishes |
 | `src/foodmacros` | Reusable Python package used by all of the above |
@@ -215,8 +215,8 @@ The bundled artifacts in `models/weight` are picked up automatically when
 `weight.enable_regression` is true (the default), so neither the CLI nor the
 Gradio app needs an extra flag. Both pipelines use it:
 
-- **Single dish**: one prediction for the whole image.
-- **Multiple dishes**: one prediction per detected dish crop; the plate total is
+- **Single Dish**: one prediction for the whole image.
+- **Multi-Dish**: one prediction per detected dish crop; the plate total is
   computed from those estimates, and a per-dish measured weight overrides only
   that dish.
 

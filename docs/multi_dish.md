@@ -52,17 +52,25 @@ python scripts/run_multi_analysis.py plate.jpg --dish-grams "200,100,50,30"
 blank to skip that dish's explicit weight, e.g. `--dish-grams "200,,50"`; the
 bundled regressor then estimates that dish from its crop.
 
-Gradio: `python app/gradio_app.py` opens a **Multiple dishes** tab (alongside the
-existing **Single dish** tab). It is a two-step workflow:
+Gradio: `python app/gradio_app.py` opens a dashboard with **Single Dish**,
+**Multi-Dish**, and **About** navigation. The multi-dish view is a two-step
+workflow:
 
-1. Upload/capture a photo and click **1) Detect & classify**. This shows the photo
-   with **numbered boxes** and a table with one row per dish:
-   `Dish | Detected | Predicted | Confidence | Include | Grams (g)`.
-2. Edit the **Grams (g)** column for the dishes you weighed and/or untick
-   **Include** to leave a dish out, then click **2) Compute nutrition & total**.
-   A blank Grams cell keeps the automatic regression estimate for that dish.
+1. Upload/capture a photo and click **Analyze Plate**. This shows the photo with
+   **numbered boxes**, a plate summary, **Nutrition by Dish** cards, and a table
+   with one row per dish:
+   `Dish | Food thumbnail | Detected Dish | Predicted Dish (Top-1) | Confidence |
+   Predicted Weight (g) | Edit Weight (g) | Include`.
+2. The **Predicted Weight (g)** column is read-only and shows each dish's
+   automatic regression estimate. Enter a measured value in **Edit Weight (g)**
+   to override it, and/or untick **Include** to leave a dish out of the total.
+   Then click **Recompute Nutrition**. A blank Edit Weight cell keeps the
+   automatic estimate for that dish; when no estimate is available the cell
+   stays blank.
 
-The dish table is recomputed without re-running detection.
+The plate summary and **Nutrition by Dish** cards are recomputed without
+re-running detection. Raw report text, structured JSON, and limitations live in
+the collapsed **Technical details** section.
 
 Python:
 

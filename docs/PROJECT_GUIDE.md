@@ -35,7 +35,7 @@ All three use the same code underneath (`src/foodmacros`), so behaviour is
 consistent.
 
 - **Web app** (`app/gradio_app.py`): the easiest way for a human to use it.
-  Two tabs: **Single dish** and **Multiple dishes**.
+  Dashboard navigation: **Single Dish**, **Multi-Dish**, and **About**.
 - **CLI scripts**:
   - `scripts/run_analysis.py <image>` - one dish.
   - `scripts/run_multi_analysis.py <image>` - several dishes on one plate.
@@ -110,8 +110,9 @@ image ──▶ 1. detect food boxes (YOLO)
 - Each box is cropped **at full resolution** (not the downscaled preview) and
   classified separately.
 - The user supplies a weight **per dish** (CLI `--dish-grams` or the UI
-  **Grams (g)** column). One single weight for the whole plate is only used when
-  exactly one dish is detected, because one number cannot be split between dishes.
+  **Edit Weight (g)** column). One single weight for the whole plate is only used
+  when exactly one dish is detected, because one number cannot be split between
+  dishes.
 - When no per-dish weight is supplied, the bundled regressor predicts a weight
   for **each dish crop** independently. A supplied per-dish weight overrides
   only that dish's prediction.

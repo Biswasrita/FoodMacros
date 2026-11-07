@@ -327,18 +327,26 @@ class MultiDishPipeline:
         include: Optional[Sequence[bool]],
     ) -> MultiAnalysisResult:
         """Apply per-dish weights to a result and recompute the plate total."""
-        dishes = list(result.dishes)
+        # Copy the dishes so re-weighting never mutates a prior detection result
+        # (the UI keeps that result in state between compute clicks).
+        dishes = [replace(dish) for dish in result.dishes]
         warnings = list(result.warnings)
 
-        if per_dish_grams is not None:
-            if len(per_dish_grams) != len(dishes):
-                warnings.append(
-                    f"got {len(per_dish_grams)} weights for {len(dishes)} dishes; "
-                    "extra weights were ignored and missing ones left unset."
-                )
-            for dish, grams in zip(dishes, per_dish_grams):
-                if grams is not None and str(grams).strip() != "":
-                    self._set_dish_weight(dish, grams)
+        if per_dish_grams is not None and len(per_dish_grams) != len(dishes):
+            warnings.append(
+                f"got {len(per_dish_grams)} weights for {len(dishes)} dishes; "
+                "extra weights were ignored and missing ones keep their "
+                "automatic estimate."
+            )
+        for pos, dish in enumerate(dishes):
+            grams = (
+                per_dish_grams[pos]
+                if per_dish_grams is not None and pos < len(per_dish_grams)
+                else None
+            )
+            # A blank/None value falls back to the dish's automatic regression
+            # estimate; a numeric value is a measured override.
+            self._set_dish_weight(dish, grams)
 
         included = self._resolve_include(include, len(dishes))
         totals, basis, total_grams, reason = self._totals(dishes, included)
