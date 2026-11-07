@@ -1,12 +1,17 @@
 # File-by-File Reference
 
 This document lists **every file** in the repository, one line each, grouped by
-directory. Sizes are from the audit at `CLEANUP_AUDIT.md` (snapshot of the
-project before this documentation task). New files added by the documentation
-task are listed at the end.
+directory. Sizes are the current local sizes (the classifier was re-saved by the
+Keras compatibility migration, so it is smaller than in the original cleanup
+snapshot). New files added by the documentation task are listed at the end.
 
 Legend: **R** = run/must-have, **G** = generated (safe to regenerate/delete),
 **C** = config, **D** = documentation, **A** = trained artifact (do not modify).
+
+> Some entries below (`model_outputs/`, `backups/`, root `nutrition.csv`,
+> `yolov8n.pt`, the root notebook) are **local-only** and are excluded by
+> `.gitignore`. A fresh clone contains only the tracked files, including all
+> runtime artifacts under `models/`.
 
 ---
 
@@ -65,13 +70,17 @@ Legend: **R** = run/must-have, **G** = generated (safe to regenerate/delete),
 | `CLEANUP_AUDIT.md` | **D** (new) Cleanup proposal (nothing deleted without approval) |
 | `FRIEND_HANDOVER.md` | **D** (new) Submission-ready summary |
 
-## `models/` (3 files, ~59 MB) - the runtime artifacts
+## `models/` (7 files, ~82 MB) - the runtime artifacts
 
 | File | Size | Role |
 |---|---|---|
-| `classifier/classifier.keras` | 52.5 MB | **A** The trained EfficientNetB0 classifier (101 classes). Copy of `model_outputs/food101_nutrition_final.keras`. Loaded with `compile=False` at runtime |
-| `classifier/class_names.json` | 1.5 KB | **A** The 101 Food-101 class labels (copy of the one in `model_outputs/`) |
-| `food_detector/food_detector.pt` | 6.6 MB | **A** Ultralytics YOLO food detector (113-class, Nutrition5k-style, **not** COCO). Used only to find boxes; never weight. Copy of root `yolov8n.pt` |
+| `classifier/classifier.keras` | 19.9 MB | **A** The trained EfficientNetB0 classifier (101 classes). Loaded with `compile=False` at runtime |
+| `classifier/class_names.json` | 1.5 KB | **A** The 101 Food-101 class labels |
+| `food_detector/food_detector.pt` | 6.6 MB | **A** Ultralytics YOLO food detector (113-class, Nutrition5k-style, **not** COCO). Used only to find boxes; never weight |
+| `weight/mass_regressor.keras` | 23.8 MB | **A** MobileNetV2 RGB mass regressor (Nutrition5k). Used by both single- and multi-dish pipelines |
+| `weight/normalization.json` | 153 B | **A** Target mean/std (255.23 g / 221.91 g) for denormalizing predictions |
+| `weight/config.json` | 102 B | **A** Regressor input size (224) + backbone (`mobilenetv2`) |
+| `weight/test_metrics.json` | 328 B | **A** Held-out metrics: MAE 71.87 g, RMSE 103.59 g, R² 0.777, MAPE 80.29% |
 
 ## `model_outputs/` (5 files, ~136 MB) - original training outputs
 
@@ -89,7 +98,7 @@ Legend: **R** = run/must-have, **G** = generated (safe to regenerate/delete),
 |---|---|---|
 | `kaggle_weight_macros.ipynb` | 6.3 KB | **D** Thin Kaggle orchestrator: adds `src/` to the path, loads config, resolves inputs, optionally trains, analyzes a sample image, and launches the Gradio app. Importable anywhere |
 
-## `scripts/` (5 scripts + 6 compiled caches)
+## `scripts/` (8 scripts + compiled caches)
 
 | File | Size | Role |
 |---|---|---|
@@ -98,7 +107,10 @@ Legend: **R** = run/must-have, **G** = generated (safe to regenerate/delete),
 | `run_multi_analysis.py` | 4.2 KB | **R** Analyze a multi-dish photo. Flags: `--measured`, `--dish-grams`, `--top-k`, `--max-dishes`, `--crop-padding`, `--model-dir`, `--detector-weights`, `--nutrition-csv`, `--config`, `--json` |
 | `smoke_test.py` | 3.9 KB | **R** Synthetic end-to-end check: tiny train → save → reload → analyze. No external data needed |
 | `train_classifier.py` | 2.5 KB | **R** Train the classifier on discovered images. Flags: `--config`, `--full` (full run vs quick) |
-| `__pycache__/` (6 .pyc) | G | Compiled bytecode |
+| `train_weight.py` | 6.9 KB | **R** Build the Nutrition5k weight dataset and train the RGB mass regressor (needs the dataset; `--nutrition5k`, `--output`) |
+| `predict_weight.py` | 2.1 KB | **R** Predict portion grams for one image using a saved regressor (`--image`, `--model`) |
+| `migrate_classifier.py` | 1.7 KB | **R** One-time Keras compatibility migration; verifies predictions are unchanged before re-saving |
+| `__pycache__/` (8 .pyc) | G | Compiled bytecode |
 
 ## `src/foodmacros/` (31 .py files + 31 caches, ~0.4 MB)
 
@@ -144,7 +156,7 @@ Legend: **R** = run/must-have, **G** = generated (safe to regenerate/delete),
 |---|---|
 | `__init__.py` | Exports |
 | `estimator.py` | Trust order: measured > estimated > experimental > unavailable, with a reliable-range check |
-| `regression.py` | Nutrition5k metadata parsing + mass/macro regressor (needs the ~23 GB mirror to train) |
+| `regression.py` | Nutrition5k metadata parsing + mass regressor; loads bundled `models/weight` artifacts at inference (training needs the ~23 GB mirror) |
 | `depth_model.py` | Experimental depth-estimation model (disabled by default) |
 | `calibration.py` | Experimental depth calibration helpers |
 | `volume.py` | Experimental volume-from-depth helpers |
@@ -164,11 +176,11 @@ Legend: **R** = run/must-have, **G** = generated (safe to regenerate/delete),
 | File | Role |
 |---|---|
 | `pipeline.py` | `FoodAnalysisPipeline`: `from_discovery`/`from_artifacts` (defaults to bundled `models/classifier` + `models/food_detector`), `analyze()` runs stages 1-8, returns `AnalysisResult` |
-| `multi_pipeline.py` | `MultiDishPipeline`: detect → crop → classify each → nutrition per dish; `apply_weights(result, per_dish_grams, include)` recomputes totals without re-detecting |
+| `multi_pipeline.py` | `MultiDishPipeline`: detect → crop → classify → per-dish regression → nutrition; `apply_weights(result, per_dish_grams, include)` recomputes a dish's weight/totals without re-detecting |
 | `reporting.py` | `format_analysis()` (text), `analysis_to_dict()` (JSON), shared `LIMITATIONS` |
 | `multi_reporting.py` | `format_multi_analysis()`, `multi_analysis_to_dict()` |
 
-## `tests/` (21 test files + `conftest.py` + 22 caches, ~0.46 MB)
+## `tests/` (26 test files + `conftest.py` + caches, ~0.46 MB)
 
 `conftest.py` adds `src/` to `sys.path` (so `pytest` works with no setup) and
 provides fixtures: `image_factory`, `synthetic_dataset`, `synthetic_nutrition_csv`.
@@ -181,23 +193,28 @@ provides fixtures: `image_factory`, `synthetic_dataset`, `synthetic_nutrition_cs
 | `test_preprocessing.py` | 8 | Image decode + `tf.data` builders |
 | `test_classification_model.py` | 6 | Model build, ViT fusion opt-out |
 | `test_classification_train.py` | 1 | Training happy path + artifact writing |
+| `test_classification_compat.py` | 3 | Keras archive compatibility loader |
 | `test_classification_evaluate.py` | 5 | Top-1/top-5, report helpers |
 | `test_classification_predict.py` | 6 | Single-image prediction robustness |
 | `test_nutrition.py` | 20 | Lookup strategies, aliases, missing labels |
 | `test_portion.py` | 6 | Scaling/rounding |
 | `test_weight_estimator.py` | 12 | Trust ordering + reliable range |
 | `test_weight_regression.py` | 8 | Nutrition5k parsing/regressor |
+| `test_weight_mass_dataset.py` | 8 | Nutrition5k mass-pair dataset building |
+| `test_weight_mass_no_leakage.py` | 1 | Dish-level split leakage guard |
+| `test_weight_mass_predict.py` | 4 | Regressor loading + mass prediction |
 | `test_weight_geometry.py` | 13 | Geometry helpers |
 | `test_weight_depth_model.py` | 3 | Depth-model guards |
 | `test_detection.py` | 9 | YOLO wrapper guards (package missing, class-name verify) |
 | `test_detection_crop.py` | 9 | Full-res cropping + padding |
 | `test_pipeline.py` | 14 | End-to-end analyze; default artifact resolution; honest fallbacks |
+| `test_pipeline_regression.py` | 5 | Bundled regressor + single/multi-dish auto weight; measured override |
 | `test_multi_pipeline.py` | 12 | Multi-dish analyze; `apply_weights` |
 | `test_app.py` | 8 | Gradio helpers, missing-gradio handling, multi-compute totals |
 | `test_scripts.py` | 5 | CLI argument handling (missing image, `--json`) |
 | `test_env_checks.py` | 4 | Environment report / mixed-precision helpers |
 
-**Total: 173 test functions** across the 21 files above (171 pass, 2 skip).
+**Total: 194 test functions** across the 26 files above (192 pass, 2 skip).
 
 ## `.pytest_cache/` (5 files, generated) - G
 

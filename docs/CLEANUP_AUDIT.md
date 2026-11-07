@@ -26,6 +26,11 @@ instruction to delete. Deleting anything requires your explicit approval.
 | `.pytest_cache/` | 5 | 0.01 MB |
 | **Total** | **148** | **202.71 MB** |
 
+> The later mass-regressor integration added **4 files under `models/weight/`
+> (~23.8 MB)**, bringing the runtime model set to ~83 MB. The classifier was
+> also re-saved by the Keras compatibility migration and is now ~19.9 MB (the
+> 52.5 MB figures below are the pre-migration snapshot). Nothing else changed.
+
 After this documentation task, the tree grew by the files listed at the end of
 `FILE_BY_FILE_REFERENCE.md` (7 new docs + `backups/README.md`).
 
@@ -36,6 +41,8 @@ The size is dominated by trained models:
   (29.9 MB), plus a 952 KB notebook and 1.5 KB class names.
 - `models/` ≈ 59 MB: `classifier.keras` (52.5 MB) + 6.6 MB detector + 1.5 KB
   labels. **This is the runtime set - do not delete.**
+- `models/weight/` ≈ 23.8 MB: the trained RGB mass regressor + its
+  normalization/config/metrics. Also part of the runtime set - do not delete.
 
 ---
 
@@ -90,6 +97,8 @@ the byte-identical duplicates would be gone.
 
 - `models/classifier/classifier.keras`, `models/classifier/class_names.json`
 - `models/food_detector/food_detector.pt`
+- `models/weight/mass_regressor.keras`, `normalization.json`, `config.json`,
+  `test_metrics.json`
 - `data/nutrition.csv`
 - `src/` (the whole package)
 - `app/gradio_app.py`
@@ -116,3 +125,12 @@ artifact was touched**:
    `RUN_AND_TROUBLESHOOT.md`, `CLEANUP_AUDIT.md`, `FRIEND_HANDOVER.md`).
 
 **Wait for explicit approval before acting on any item in section 4.**
+
+---
+
+## 7. Later change: mass-regressor integration
+
+A separate code change (not part of the documentation task) added the trained
+Nutrition5k RGB regressor under `models/weight/` and wired it into both
+pipelines. It adds no duplicates and deletes nothing; the new artifacts are
+now part of the must-keep runtime set.

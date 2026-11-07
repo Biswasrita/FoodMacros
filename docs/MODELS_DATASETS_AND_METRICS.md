@@ -34,10 +34,11 @@ files in this repository. Nothing has been guessed.
   to the Food-101 file names (`cup_cakes`, `fish_and_chips`) through small
   aliases in `src/foodmacros/nutrition/lookup.py`.
 
-### Nutrition5k (weight regression) - NOT attached
-- A ~23.5 GB mirror would let the project train the **mass regressor** that
-  estimates a portion's weight from its photo. It is not present, so the
-  weight path reports `estimated` as unavailable and never invents grams.
+### Nutrition5k (weight regression) - model bundled, dataset not attached
+- A ~23.5 GB mirror is needed to **re-train** the mass regressor. It is not
+  present on this machine, but the **trained RGB model and its metadata are
+  bundled** in `models/weight/` (see the mass-regressor subsection below).
+- Inference needs only an RGB photo; no depth, metadata or Nutrition5k files.
 
 ### Food detector weights
 - The detector `models/food_detector/food_detector.pt` is an **ultralytics
@@ -97,6 +98,33 @@ Notes:
 - In **multi-dish** mode every crop is classified independently, so the same
   74%/92% caveat applies **per dish**.
 
+### Mass regressor (Nutrition5k, RGB-only)
+
+- **Task:** predict a dish's total mass in grams from one RGB image.
+- **Backbone:** MobileNetV2, ImageNet-pretrained, input **224×224**, with a
+  small regression head and one normalized output (`total_mass`).
+- **Data:** Nutrition5k overhead RGB (`imagery/realsense_overhead/<dish_id>/rgb.png`)
+  joined to measured `total_mass` from the metadata CSVs. Splits are made by
+  unique `dish_id`: **2,282 train / 489 validation / 489 test** dish pairs.
+- **Normalization:** training-split mean **255.23 g**, std **221.91 g**;
+  predictions are denormalized back to grams.
+- **Artifacts:** `models/weight/mass_regressor.keras`,
+  `normalization.json`, `config.json`, `test_metrics.json` (Git LFS).
+- **Held-out test metrics (n=489, never trained on):**
+
+| Metric | Value |
+|---|---|
+| MAE | 71.87 g |
+| RMSE | 103.59 g |
+| R² | 0.777 |
+| MAPE | 80.29% |
+| Mean-baseline MAE | 174.90 g |
+
+The model roughly halves the error of always predicting the mean, but MAPE is
+high because small dishes dominate relative error. Treat `estimated` weight as
+a rough guide, never as a measurement; predictions are only accepted inside the
+configured reliable range (5–2000 g).
+
 ---
 
 ## 4. Metrics you should NOT quote
@@ -143,9 +171,13 @@ only: mAP50 is the average-precision at IoU threshold 0.50, mAP50-95 at
 | `models/classifier/classifier.keras` | EfficientNetB0, 101 classes | Predicting the dish |
 | `models/classifier/class_names.json` | 101 label names | Turning index → dish name |
 | `models/food_detector/food_detector.pt` | YOLO, 113 classes | Finding food boxes (multi-dish + UI) |
+| `models/weight/mass_regressor.keras` | MobileNetV2 RGB regressor | Estimating portion grams |
+| `models/weight/normalization.json` | Target mean/std | Denormalizing predictions to grams |
+| `models/weight/config.json` | Input size + backbone | Loading the regressor consistently |
+| `models/weight/test_metrics.json` | Held-out metrics | Auditing the documented MAE/RMSE/R² |
 | `data/nutrition.csv` | 505 nutrition rows | Macros per dish × weight |
 
-All four are **bundled defaults** - the pipeline loads them automatically, so
+All of these are **bundled defaults** - the pipeline loads them automatically, so
 `run_analysis.py`, `run_multi_analysis.py`, and the Gradio app work right after
 `pip install -r requirements.txt`.
 
@@ -156,7 +188,7 @@ All four are **bundled defaults** - the pipeline loads them automatically, so
 | Status | Meaning | When it happens |
 |---|---|---|
 | `measured` | User-supplied grams (trusted) | `--measured`, `--dish-grams`, or the UI Grams column |
-| `estimated` | Nutrition5k regression in a reliable range | Only if a trained regressor + data exist (not here) |
+| `estimated` | Nutrition5k RGB regression in a reliable range | Bundled model; per dish in multi-dish mode |
 | `experimental` | Depth volume × density | **Off by default**; must be enabled deliberately |
 | `unavailable` | No trustworthy number | Everything else; **no grams invented** |
 
@@ -174,6 +206,7 @@ that is clearly labelled as a *reference*, never as the real portion.
 > separate 113-class YOLO food detector finds food boxes so several dishes in
 > one photo can each be classified and nutrition-looked-up; masks never become
 > weight. Macronutrients come from a 101-class nutrition CSV (505 rows, 5
-> serving weights per class). Portion weight is never invented - it is reported
-> as user-measured, regression-estimated (not active), experimental depth
-> (disabled), or unavailable.
+> serving weights per class). A bundled MobileNetV2 regressor estimates portion
+> weight from RGB (Nutrition5k held-out: MAE 71.87 g, R² 0.777), but weight is
+> never presented as ground truth - it is reported as user-measured,
+> regression-estimated, experimental depth (disabled), or unavailable.

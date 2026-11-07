@@ -49,7 +49,8 @@ python scripts/run_multi_analysis.py plate.jpg --dish-grams "200,100,50,30"
 ```
 
 `--dish-grams` takes one value per detected dish (in table order). Leave an entry
-blank to skip that dish's weight, e.g. `--dish-grams "200,,50"`.
+blank to skip that dish's explicit weight, e.g. `--dish-grams "200,,50"`; the
+bundled regressor then estimates that dish from its crop.
 
 Gradio: `python app/gradio_app.py` opens a **Multiple dishes** tab (alongside the
 existing **Single dish** tab). It is a two-step workflow:
@@ -59,6 +60,7 @@ existing **Single dish** tab). It is a two-step workflow:
    `Dish | Detected | Predicted | Confidence | Include | Grams (g)`.
 2. Edit the **Grams (g)** column for the dishes you weighed and/or untick
    **Include** to leave a dish out, then click **2) Compute nutrition & total**.
+   A blank Grams cell keeps the automatic regression estimate for that dish.
 
 The dish table is recomputed without re-running detection.
 
@@ -80,19 +82,20 @@ result = pipeline.apply_weights(result, per_dish_grams=[200, 100], include=[True
 
 ## Weight and totals — what is honest
 
-- Weights are never invented. Each dish's weight comes from either a
-  **measured** value (user-provided, e.g. `--dish-grams` or the UI table) or is
-  **unavailable**. With no weight, a dish's macros are shown for the reference
-  quantity (default 100 g).
+- Weights are never presented as measurements. Each dish's weight comes from a
+  **measured** value (user-provided, e.g. `--dish-grams` or the UI table) or an
+  **estimated** value from the bundled Nutrition5k RGB regressor, which runs on
+  each dish crop automatically. If the regressor cannot load, weight is
+  **unavailable** and macros use the reference quantity (default 100 g).
 - A single **measured plate weight** (`--measured-grams`) describes the *whole
   plate* and is only used when exactly one dish is present. For multiple dishes
   it is ignored with a warning, because one number cannot be split between dishes.
 - **Plate totals are only shown when every included dish has a usable weight and
-  nutrition.** Otherwise the totals are reported as `unavailable` with a reason
-  (e.g. *"missing weight for dish 2"*). This avoids pretending the sum of
-  reference-quantity macros is the real plate.
+  nutrition** (measured or estimated). Otherwise the totals are reported as
+  `unavailable` with a reason (e.g. *"missing weight for dish 2"*). This avoids
+  pretending the sum of reference-quantity macros is the real plate.
 - When shown, `totals_basis` is `per_predicted_weight` and `total_grams` is the
-  sum of the weighed portions. Unticking **Include** removes a dish from the
+  sum of the per-dish weights. Unticking **Include** removes a dish from the
   total (and from `total_grams`) without discarding its per-dish row.
 
 ## Status (verified locally)
@@ -100,11 +103,13 @@ result = pipeline.apply_weights(result, per_dish_grams=[200, 100], include=[True
 - The bundled detector loads and detects real food; the classifier assigns
   Food-101 labels; nutrition lookup resolves all 101 labels (including the 7
   display-name aliases such as `cup_cakes` ← `Cupcakes`).
-- Verified end to end on a real composite plate: detection produced multiple
-  boxes, crops were classified, and per-dish values were reported. With
-  `--dish-grams "200,100,50,30"` a plate total of `960 kcal / 380 g` was produced;
-  with a blank entry (`--dish-grams "200,,50,30"`) the total correctly became
-  `unavailable (missing weight for dish 2)`.
+- Verified end to end on a real plate: detection produced multiple boxes, crops
+  were classified, and each dish received an automatic regression weight with a
+  plate total. Explicit weights override the estimate: with
+  `--dish-grams "200,100,50,30"` the plate total uses those grams; leaving a
+  blank entry keeps the estimate for that dish. If the regressor is absent, the
+  blank dish (and therefore the total) correctly becomes
+  `unavailable (missing weight for dish N)`.
 - The Gradio app was launched locally (HTTP 200 at `http://127.0.0.1:7860`) and
   the interface built successfully with the installed Gradio.
 - Not verified: accuracy of the detector/classifier on arbitrary real plates —

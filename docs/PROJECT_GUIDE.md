@@ -14,8 +14,10 @@ Given a photo of food, we want to answer three questions:
 2. **How much does the portion weigh?** (grams)
 3. **What are the macros for that portion?** (calories, protein, carbs, fat, ...)
 
-This project ships a working answer for (1) and (3), and an honest "no answer"
-for (2) unless the user asks for it - because we refuse to invent a weight.
+This project ships a working answer for (1) and (3), and an honest **estimate**
+for (2): a bundled RGB regressor predicts grams, marked `estimated`, while a
+user-supplied measurement is the only value treated as ground truth. We never
+present an estimate as a measurement.
 
 The main model is an **EfficientNetB0** image classifier trained on the
 **Food-101** dataset (101 dishes). A separate **food detector** (a YOLO model)
@@ -77,8 +79,8 @@ Steps in plain words:
    Boxes describe **where** food is - they are *never* interpreted as weight.
 3. **Weight** follows a strict order of trust:
    - `measured` - you typed the grams (only this is trusted);
-   - `estimated` - a Nutrition5k regressor (not active, because the ~23 GB
-     Nutrition5k dataset is not attached);
+   - `estimated` - the bundled Nutrition5k RGB regressor (MobileNetV2), accepted
+     only inside the reliable range;
    - `experimental` - depth camera volume × food density (disabled by default);
    - `unavailable` - otherwise. **No grams are invented.**
 4. **Nutrition** looks up the predicted dish in `data/nutrition.csv` and scales
@@ -110,6 +112,9 @@ image ──▶ 1. detect food boxes (YOLO)
 - The user supplies a weight **per dish** (CLI `--dish-grams` or the UI
   **Grams (g)** column). One single weight for the whole plate is only used when
   exactly one dish is detected, because one number cannot be split between dishes.
+- When no per-dish weight is supplied, the bundled regressor predicts a weight
+  for **each dish crop** independently. A supplied per-dish weight overrides
+  only that dish's prediction.
 - **The plate total is shown only when every included dish has a usable weight
   AND nutrition.** Otherwise it prints `unavailable` with a reason, e.g.
   `missing weight for dish 2`. It will not add up reference-quantity macros and
@@ -169,8 +174,9 @@ mixed precision, and gives a default working/output directory.
 ### `weight/` (estimator, regression, depth_model, calibration, volume, density)
 - `estimator.py` implements the trust order: measured > estimated >
   experimental > unavailable, with a configurable reliable range.
-- `regression.py` parses Nutrition5k metadata and defines a mass/macro
-  regressor (not trained locally - the dataset is not attached).
+- `regression.py` parses Nutrition5k metadata, defines the mass regressor, and
+  loads the bundled `models/weight` artifacts for inference (the ~23 GB dataset
+  is only needed to re-train, not to run).
 - The `depth_model` / `calibration` / `volume` / `density` modules are the
   experimental depth path, disabled by default.
 
@@ -183,9 +189,9 @@ mixed precision, and gives a default working/output directory.
 
 ### `pipeline.py` and `multi_pipeline.py`
 The orchestrators. `FoodAnalysisPipeline.analyze()` runs the single-dish
-stages; `MultiDishPipeline.analyze()` runs detect → crop → classify → nutrition
-and `apply_weights()` recomputes totals from user weights without re-running
-detection.
+stages; `MultiDishPipeline.analyze()` runs detect → crop → classify →
+per-dish regression → nutrition and `apply_weights()` recomputes a dish's weight
+(and the totals) without re-running detection.
 
 ### `reporting.py` and `multi_reporting.py`
 Turn results into readable text or JSON. Both share the same honesty notes
@@ -224,6 +230,8 @@ which source (model, detector, weights, CSV) was used and which was not.
    a single detected dish.
 7. **Plate totals are honest** - shown only when every included dish has a
    usable weight and nutrition.
+8. **An estimate is labelled as an estimate** - regression grams are never
+   reported as `measured`, and a user measurement always wins.
 
 ---
 
@@ -233,11 +241,11 @@ This is a summary; `docs/RUN_AND_TROUBLESHOOT.md` expands on it.
 
 | Area | Status |
 |---|---|
-| Full pytest suite | Passes: 171 passed, 2 skipped |
+| Full pytest suite | Passes: 192 passed, 2 skipped |
 | Smoke test (train → save → load → classify → nutrition) | Verified locally |
 | Real Food-101 accuracy (74.05% top-1) | Measured in the training notebook, not re-measured here |
 | YOLO food detector | Loads and detects real food; **not** COCO classes |
-| Nutrition5k mass regression | Not active (dataset absent) |
+| Nutrition5k mass regression | Bundled RGB model active; MAE 71.87 g, R² 0.777 on held-out data (not re-measured here) |
 | Depth-based weight | Experimental, disabled by default |
 | Gradio app | Launches locally; public share/hosting not verified |
 | Kaggle notebook run | Requires `/kaggle/input` |

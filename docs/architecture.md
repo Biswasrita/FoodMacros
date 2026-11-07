@@ -59,7 +59,7 @@ usable weight and nutrition.
 - **weight**
   - `estimator.py` — trust ordering: measured > estimated > experimental >
     unavailable, with a configurable reliable range.
-  - `regression.py` — Nutrition5k metadata parsing + mass/macro regressor.
+  - `regression.py` — Nutrition5k metadata parsing + mass/macro regressor; loads the bundled `models/weight` artifacts at inference.
   - `depth_model.py`, `calibration.py`, `volume.py`, `density.py` — the
     experimental depth path (disabled by default).
 - **detection** (`yolo_detector.py`, `crop.py`, `visualize.py`) — guarded

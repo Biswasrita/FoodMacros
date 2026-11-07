@@ -18,7 +18,7 @@ the development sandbox. They must be validated where those resources exist.
 |---|---|---|
 | Real Food-101 accuracy | no dataset, no GPU | attach Food-101 + train, then run `evaluate.py` |
 | Real YOLO food detection | bundled `models/food_detector/food_detector.pt` loads and detects real food (verified, 113 classes — not COCO) | rerun on your own photos to sanity-check |
-| Nutrition5k mass regression | ~23.5 GB mirror not attached | attach the mirror; regressor trains/loads |
+| Nutrition5k mass regression | bundled RGB model runs locally (held-out MAE 71.87 g, R² 0.777); re-training needs the ~23.5 GB mirror | inference is bundled; attach the mirror only to re-train |
 | Depth-based weight | needs RGB-D + calibration; disabled by default | depth dataset + calibration; keep off until validated |
 | Gradio UI launch | gradio installed and launched locally (HTTP 200 at `http://127.0.0.1:7860`); UI flows are unit-tested | public hosting (e.g. `--share` or Hugging Face Spaces) still unverified |
 | Kaggle notebook run | no `/kaggle/input` locally | run `notebooks/kaggle_weight_macros.ipynb` on Kaggle |
@@ -26,9 +26,10 @@ the development sandbox. They must be validated where those resources exist.
 
 ## Multi-dish totals
 
-- Per-dish weights must be supplied per dish (CLI `--dish-grams`, the UI
-  **Grams (g)** column, or `apply_weights`). A single `--measured` weight is used
-  only when exactly one dish is present.
+- Per-dish weights can be supplied explicitly (CLI `--dish-grams`, the UI
+  **Grams (g)** column, or `apply_weights`); otherwise the bundled regressor
+  estimates each dish crop. A single `--measured` weight is used only when
+  exactly one dish is present.
 - A **plate total** is shown only when every *included* dish has both a usable
   weight and nutrition data. Otherwise it is reported as `unavailable` with a
   reason; the project never presents the sum of reference-quantity macros as a
@@ -38,7 +39,8 @@ the development sandbox. They must be validated where those resources exist.
 
 - `measured` — user-supplied grams; the only value treated as ground truth.
 - `estimated` — Nutrition5k regression, only accepted inside the configured
-  reliable range (`weight.min_reliable_grams` .. `max_reliable_grams`).
+  reliable range (`weight.min_reliable_grams` .. `max_reliable_grams`); the
+  bundled RGB model is used automatically.
 - `experimental` — depth volume × approximate density; off by default and
   labelled low-confidence.
 - `unavailable` — nothing reliable; **no grams are shown**, and macros fall back

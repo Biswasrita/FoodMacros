@@ -74,13 +74,13 @@ python app/gradio_app.py            # add --share for a public temporary link
 Final_Year_Project/
   configs/                 JSON settings (default.json, multi_dish.json, food_densities.json)
   data/nutrition.csv       nutrition table (101 Food-101 classes, 5 weight rows each)
-  models/                  runtime artifacts (classifier.keras, class_names.json, food_detector.pt)
+  models/                  runtime artifacts (classifier, food detector, mass regressor)
   model_outputs/           original training outputs + the big training notebook
   notebooks/               lightweight Kaggle orchestrator
   src/foodmacros/          the reusable package (classification, detection, nutrition, weight, pipeline)
   app/gradio_app.py        the web UI
   scripts/                 command-line tools
-  tests/                   pytest suite (173 test functions; 171 pass, 2 skipped)
+  tests/                   pytest suite (194 test functions; 192 pass, 2 skipped)
   docs/                    user guides (see below)
 ```
 
@@ -104,19 +104,21 @@ The `docs/` folder is written for a beginner who is new to the project:
 python -m pytest tests -q
 ```
 
-The suite has **173 test functions** across 21 test files and currently reports
-**171 passed, 2 skipped** (`tests/conftest.py` puts `src/` on the path
+The suite has **194 test functions** across 26 test files and currently reports
+**192 passed, 2 skipped** (`tests/conftest.py` puts `src/` on the path
 automatically, so no extra setup is needed).
 
 ## What is verified locally vs. what is not
 
 Verified in this development environment:
 
-- The full pytest suite passes (171 passed, 2 skipped).
+- The full pytest suite passes (192 passed, 2 skipped).
 - `scripts/smoke_test.py` trains a tiny classifier, saves it, reloads it through
   the pipeline, and analyzes an image end to end.
 - The bundled food detector loads and detects real food; the classifier assigns
   Food-101 labels with real nutrition lookup for all 101 classes.
+- The bundled mass regressor loads and returns `estimated` weights for
+  single-dish and per-dish multi-dish analysis; a measured weight overrides it.
 - The Gradio app launches and serves at `http://127.0.0.1:7860`.
 - Single- and multi-dish CLI analysis run on real Food-101 images and composite
   plates, including the honest `unavailable` fallbacks.
@@ -124,7 +126,8 @@ Verified in this development environment:
 Not verified here (needs a dataset/GPU this machine does not have):
 
 - Re-training on the full Food-101 dataset and re-measuring accuracy locally.
-- Nutrition5k mass regression (the ~23 GB mirror is not attached).
+- Re-training the Nutrition5k mass regressor (the ~23 GB dataset mirror is not
+  attached); the trained artifacts are bundled and used at inference.
 - Depth-based weight estimation (disabled by default, experimental).
 - A public Gradio share link or Hugging Face deployment.
 
@@ -154,6 +157,23 @@ Nutrition5k measured total_mass (from dish_metadata_cafe1.csv / dish_metadata_ca
 - **RGB-only baseline**: This is the first experiment (`RGB → mass_g`). Depth/MiDaS can be added later for comparison.
 - **Dish-level splitting**: Splits are done by unique `dish_id` to prevent leakage between train/validation/test sets.
 - **Normalization**: Targets are normalized using training split statistics only; predictions are denormalized back to grams.
+
+### Bundled model and measured accuracy
+The trained RGB regressor ships in `models/weight/` (tracked with Git LFS):
+`mass_regressor.keras`, `normalization.json`, `config.json` and
+`test_metrics.json`. On the held-out Nutrition5k test split (n=489) it scores:
+
+| Metric | Value |
+|---|---|
+| MAE | 71.87 g |
+| RMSE | 103.59 g |
+| R² | 0.777 |
+| MAPE | 80.29% |
+| Mean-baseline MAE | 174.90 g |
+
+This is a useful estimate, **not a measurement**: MAPE is high because small
+dishes dominate the relative error. Predictions are only accepted inside the
+configured reliable range (5–2000 g).
 
 ### Download Nutrition5k
 Download from the [Nutrition5k GCS bucket](https://console.cloud.google.com/storage/browser/nutrition5k_dataset/nutrition5k_dataset). Recommended CLI:
@@ -191,7 +211,21 @@ python scripts/predict_weight.py --image /path/to/food.jpg --model models/weight
 Output: `Estimated food weight: XXX.X g`. No Nutrition5k metadata or depth required at inference.
 
 ### Integration
-Once trained, the artifacts in `models/weight` are picked up automatically when `weight.enable_regression` is true (no extra flag needed for the Gradio app). You can also point at another directory explicitly with `FoodAnalysisPipeline.from_artifacts(..., mass_regressor_dir=...)` or `python app/gradio_app.py --regressor-dir <dir>`. The predicted grams are passed to the nutrition calculator for scaling; a user-supplied measured weight always takes precedence.
+The bundled artifacts in `models/weight` are picked up automatically when
+`weight.enable_regression` is true (the default), so neither the CLI nor the
+Gradio app needs an extra flag. Both pipelines use it:
+
+- **Single dish**: one prediction for the whole image.
+- **Multiple dishes**: one prediction per detected dish crop; the plate total is
+  computed from those estimates, and a per-dish measured weight overrides only
+  that dish.
+
+You can also point at another directory explicitly with
+`FoodAnalysisPipeline.from_artifacts(..., mass_regressor_dir=...)`,
+`MultiDishPipeline.from_defaults(..., mass_regressor_dir=...)`, or
+`python app/gradio_app.py --regressor-dir <dir>`. The predicted grams are passed
+to the nutrition calculator for scaling; a user-supplied measured weight always
+takes precedence.
 
 ## A note on the training notebook
 
