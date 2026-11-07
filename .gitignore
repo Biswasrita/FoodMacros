@@ -12,6 +12,7 @@ backups/
 !models/classifier/classifier.keras
 !models/classifier/class_names.json
 !models/food_detector/food_detector.pt
+!models/weight/mass_regressor.keras
 
 # Python
 __pycache__/

@@ -25,7 +25,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -37,7 +37,7 @@ from .detection.crop import box_area, crop_array, load_full_image
 from .detection.yolo_detector import Detection, DetectionResult, YoloDetector
 from .nutrition.lookup import NutritionTable, VALID_STRATEGIES
 from .nutrition.portion import NUTRIENT_COLUMNS, scale_to_grams
-from .pipeline import NutritionOutcome
+from .pipeline import NutritionOutcome, _load_regression, _resolve_regressor_dir
 from .weight.estimator import WeightEstimate, WeightEstimator
 
 DEFAULT_CLASSIFIER_DIR = PROJECT_ROOT / "models" / "classifier"
@@ -79,6 +79,7 @@ class DishResult:
     nutrition: Optional[NutritionOutcome] = None
     notes: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    auto_mass: Optional[Any] = None
 
     @property
     def predicted_label(self) -> Optional[str]:
@@ -121,6 +122,7 @@ class MultiDishPipeline:
         detector: Optional[YoloDetector] = None,
         nutrition_table: Optional[NutritionTable] = None,
         weight_estimator: Optional[WeightEstimator] = None,
+        regression: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.config = config
         self.classifier = classifier
@@ -128,6 +130,7 @@ class MultiDishPipeline:
         self.detector = detector
         self.nutrition_table = nutrition_table
         self.weight_estimator = weight_estimator or WeightEstimator(config)
+        self.regression = regression
         self.notes: List[str] = []
         if classifier is None or not self.class_names:
             self.notes.append("No classifier loaded: dish classification is unavailable.")
@@ -137,6 +140,11 @@ class MultiDishPipeline:
             )
         if nutrition_table is None:
             self.notes.append("No nutrition table loaded: macronutrients are unavailable.")
+        if regression is None and getattr(config.weight, "enable_regression", False):
+            self.notes.append(
+                "No mass regressor loaded: portion weight reports 'unavailable' "
+                "unless a measured weight is supplied."
+            )
 
     @property
     def strategy(self) -> str:
@@ -152,6 +160,7 @@ class MultiDishPipeline:
         detector_weights=None,
         nutrition_csv=None,
         verify_class_names: bool = False,
+        mass_regressor_dir=None,
     ) -> "MultiDishPipeline":
         """Build a pipeline from the project's default artifact locations.
 
@@ -184,12 +193,19 @@ class MultiDishPipeline:
             except Exception:
                 nutrition_table = None
 
+        regression = None
+        if getattr(config.weight, "enable_regression", False):
+            regressor_dir = _resolve_regressor_dir(mass_regressor_dir)
+            if regressor_dir is not None:
+                regression = _load_regression(regressor_dir, config)
+
         return cls(
             config=config,
             classifier=classifier,
             class_names=class_names,
             detector=detector,
             nutrition_table=nutrition_table,
+            regression=regression,
         )
 
     # -- helpers ----------------------------------------------------------
@@ -246,9 +262,35 @@ class MultiDishPipeline:
             note=note,
         )
 
+    def _predict_crop_mass(self, crop: np.ndarray):
+        """Run the RGB mass regressor on one dish crop (None if unavailable)."""
+        if self.regression is None:
+            return None
+        from .weight.regression import predict_mass
+
+        try:
+            return predict_mass(
+                self.regression["model"],
+                self.regression["preprocess_fn"],
+                crop,
+                self.regression["img_size"],
+                self.regression["stats"],
+            )
+        except Exception:
+            return None
+
     def _set_dish_weight(self, dish: DishResult, grams: Optional[float]) -> None:
-        """(Re)compute a dish's weight + nutrition for ``grams`` (or None)."""
-        weight = self.weight_estimator.estimate(measured_grams=grams)
+        """(Re)compute a dish's weight + nutrition.
+
+        A user-supplied measured weight always wins. When it is absent, the
+        dish's automatic regression prediction (if any) is used, which the
+        estimator accepts only inside the configured reliable range.
+        """
+        measured = None if grams is None or str(grams).strip() == "" else grams
+        regression = dish.auto_mass if measured is None else None
+        weight = self.weight_estimator.estimate(
+            measured_grams=measured, regression=regression
+        )
         dish.weight = weight
         dish.nutrition = self._nutrition(dish.predicted_label, weight)
 
@@ -274,6 +316,7 @@ class MultiDishPipeline:
             return dish
 
         dish.prediction = self._classify_crop(crop, top_k)
+        dish.auto_mass = self._predict_crop_mass(crop)
         self._set_dish_weight(dish, None)
         return dish
 

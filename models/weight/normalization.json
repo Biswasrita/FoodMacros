@@ -1,0 +1,8 @@
+{
+  "mode": "mass_only",
+  "target": "mass_g",
+  "mean": 255.22922766476776,
+  "std": 221.9115318886138,
+  "img_size": 224,
+  "backbone": "mobilenetv2"
+}

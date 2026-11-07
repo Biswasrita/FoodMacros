@@ -39,9 +39,11 @@ def create_pipeline(config: AppConfig, model_dir=None, regressor_dir=None):
     return pipeline, resolved
 
 
-def create_multi_pipeline(config: AppConfig, model_dir=None):
+def create_multi_pipeline(config: AppConfig, model_dir=None, regressor_dir=None):
     """Build the multi-dish pipeline from the project's default artifacts."""
-    return MultiDishPipeline.from_defaults(config, model_dir=model_dir)
+    return MultiDishPipeline.from_defaults(
+        config, model_dir=model_dir, mass_regressor_dir=regressor_dir
+    )
 
 
 def _classification_text(result) -> str:
@@ -330,7 +332,7 @@ def main(argv=None) -> int:
     for note in pipeline.notes:
         print(f"note: {note}")
 
-    multi_pipeline = create_multi_pipeline(config, args.model_dir)
+    multi_pipeline = create_multi_pipeline(config, args.model_dir, args.regressor_dir)
     for note in multi_pipeline.notes:
         print(f"note: {note}")
 

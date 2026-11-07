@@ -1,0 +1,5 @@
+{
+  "img_size": 224,
+  "backbone": "mobilenetv2",
+  "preprocessing": "mobilenet_v2.preprocess_input"
+}
