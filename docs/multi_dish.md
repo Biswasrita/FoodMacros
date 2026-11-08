@@ -53,24 +53,16 @@ blank to skip that dish's explicit weight, e.g. `--dish-grams "200,,50"`; the
 bundled regressor then estimates that dish from its crop.
 
 Gradio: `python app/gradio_app.py` opens a dashboard with **Single Dish**,
-**Multi-Dish**, and **About** navigation. The multi-dish view is a two-step
-workflow:
+**Multi-Dish**, and **About** navigation. In the multi-dish view:
 
 1. Upload/capture a photo and click **Analyze Plate**. This shows the photo with
-   **numbered boxes**, a plate summary, **Nutrition by Dish** cards, and a table
-   with one row per dish:
-   `Dish | Food thumbnail | Detected Dish | Predicted Dish (Top-1) | Confidence |
-   Predicted Weight (g) | Edit Weight (g) | Include`.
-2. The **Predicted Weight (g)** column is read-only and shows each dish's
-   automatic regression estimate. Enter a measured value in **Edit Weight (g)**
-   to override it, and/or untick **Include** to leave a dish out of the total.
-   Then click **Recompute Nutrition**. A blank Edit Weight cell keeps the
-   automatic estimate for that dish; when no estimate is available the cell
-   stays blank.
+   **numbered boxes**, a plate summary, and **Nutrition by Dish** cards.
+2. Automatic regression weights are used for each dish; there is no per-dish
+   weight table or recompute step in the UI.
 
-The plate summary and **Nutrition by Dish** cards are recomputed without
-re-running detection. Raw report text, structured JSON, and limitations live in
-the collapsed **Technical details** section.
+Raw report text, structured JSON, and limitations live in the collapsed
+**Technical details** section. Manual per-dish weights remain available through
+the CLI `--dish-grams` option and the Python `apply_weights` API.
 
 Python:
 
@@ -91,9 +83,9 @@ result = pipeline.apply_weights(result, per_dish_grams=[200, 100], include=[True
 ## Weight and totals — what is honest
 
 - Weights are never presented as measurements. Each dish's weight comes from a
-  **measured** value (user-provided, e.g. `--dish-grams` or the UI table) or an
-  **estimated** value from the bundled Nutrition5k RGB regressor, which runs on
-  each dish crop automatically. If the regressor cannot load, weight is
+  **measured** value (user-provided, e.g. `--dish-grams` or `apply_weights`) or
+  an **estimated** value from the bundled Nutrition5k RGB regressor, which runs
+  on each dish crop automatically. If the regressor cannot load, weight is
   **unavailable** and macros use the reference quantity (default 100 g).
 - A single **measured plate weight** (`--measured-grams`) describes the *whole
   plate* and is only used when exactly one dish is present. For multiple dishes
@@ -103,8 +95,9 @@ result = pipeline.apply_weights(result, per_dish_grams=[200, 100], include=[True
   `unavailable` with a reason (e.g. *"missing weight for dish 2"*). This avoids
   pretending the sum of reference-quantity macros is the real plate.
 - When shown, `totals_basis` is `per_predicted_weight` and `total_grams` is the
-  sum of the per-dish weights. Unticking **Include** removes a dish from the
-  total (and from `total_grams`) without discarding its per-dish row.
+  sum of the per-dish weights. Passing `include=[...]` to `apply_weights`
+  removes a dish from the total (and from `total_grams`) without discarding its
+  per-dish result.
 
 ## Status (verified locally)
 

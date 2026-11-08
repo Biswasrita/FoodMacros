@@ -109,10 +109,10 @@ image ──▶ 1. detect food boxes (YOLO)
 - Detection first, then **numbered boxes** are shown on the photo.
 - Each box is cropped **at full resolution** (not the downscaled preview) and
   classified separately.
-- The user supplies a weight **per dish** (CLI `--dish-grams` or the UI
-  **Edit Weight (g)** column). One single weight for the whole plate is only used
-  when exactly one dish is detected, because one number cannot be split between
-  dishes.
+- A weight can be supplied **per dish** through the CLI `--dish-grams` option or
+  the Python `apply_weights` API. One single weight for the whole plate is only
+  used when exactly one dish is detected, because one number cannot be split
+  between dishes.
 - When no per-dish weight is supplied, the bundled regressor predicts a weight
   for **each dish crop** independently. A supplied per-dish weight overrides
   only that dish's prediction.
@@ -242,7 +242,7 @@ This is a summary; `docs/RUN_AND_TROUBLESHOOT.md` expands on it.
 
 | Area | Status |
 |---|---|
-| Full pytest suite | Passes: 192 passed, 2 skipped |
+| Full pytest suite | Passes: 195 passed, 2 skipped |
 | Smoke test (train → save → load → classify → nutrition) | Verified locally |
 | Real Food-101 accuracy (74.05% top-1) | Measured in the training notebook, not re-measured here |
 | YOLO food detector | Loads and detects real food; **not** COCO classes |

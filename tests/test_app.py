@@ -57,17 +57,6 @@ def test_app_main_reports_missing_gradio():
     assert module.main(["--config", str(ROOT / "configs" / "default.json")]) == 1
 
 
-def test_table_rows_handles_gradio_dataframe_payload():
-    module = _load_app()
-
-    class _DataframePayload:
-        data = [[1, "data:image/png;base64,abc", "pizza", "pizza", "90%", 150, 90, True]]
-
-    assert module._table_rows(_DataframePayload()) == [
-        [1, "data:image/png;base64,abc", "pizza", "pizza", "90%", 150, 90, True]
-    ]
-
-
 class _FixedModel:
     def __init__(self, n_classes, index):
         self.n_classes = n_classes
@@ -129,34 +118,27 @@ def _make_multi(synthetic_nutrition_csv, regression=None):
     )
 
 
-def test_multi_detect_returns_annotated_state_and_rows(
+def test_multi_detect_returns_annotated_summary_and_cards(
     synthetic_nutrition_csv, image_factory, tmp_path
 ):
     module = _load_app()
     pipeline = _make_multi(synthetic_nutrition_csv)
     image = str(image_factory(tmp_path / "plate.png", size=32))
 
-    annotated, state, rows, summary, per_dish, report, payload, notes = module.multi_detect(
+    annotated, summary, per_dish, report, payload, notes = module.multi_detect(
         pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
     )
 
     assert annotated is not None
-    assert state is not None and len(state.dishes) == 2
-    assert len(rows) == 2
-    # [Dish, Thumbnail, Detected, Predicted, Confidence, Predicted, Edit, Include]
-    assert rows[0][0] == 1 and rows[1][0] == 2
-    assert rows[0][1].startswith("data:image/png;base64,")
-    assert rows[0][3] == "pizza"  # predicted label
-    assert rows[0][5] is None  # regression unavailable -> no predicted grams
-    assert rows[0][6] is None  # measured override starts blank
-    assert rows[0][7] is True  # include by default
     assert "Plate Summary" in summary
     assert "Nutrition by Dish" in per_dish
     assert "Calories" in per_dish
+    assert "Weight unavailable" in per_dish
     assert payload["available"] is True
+    assert "Plate totals" in report
 
 
-def test_multi_detect_populates_grams_with_automatic_prediction(
+def test_multi_detect_populates_automatic_weights_in_cards(
     synthetic_nutrition_csv, image_factory, tmp_path
 ):
     module = _load_app()
@@ -165,13 +147,10 @@ def test_multi_detect_populates_grams_with_automatic_prediction(
     )
     image = str(image_factory(tmp_path / "plate.png", size=32))
 
-    _, state, rows, summary, per_dish, report, payload, _ = module.multi_detect(
+    _, summary, per_dish, report, payload, _ = module.multi_detect(
         pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
     )
 
-    assert rows[0][5] == pytest.approx(150.0)
-    assert rows[1][5] == pytest.approx(150.0)
-    assert rows[0][6] is None and rows[1][6] is None
     assert [d["weight"]["status"] for d in payload["dishes"]] == [
         "estimated",
         "estimated",
@@ -186,167 +165,22 @@ def test_multi_detect_populates_grams_with_automatic_prediction(
 def test_multi_detect_without_image_reports_error():
     module = _load_app()
 
-    annotated, state, rows, summary, per_dish, report, payload, notes = module.multi_detect(
+    annotated, summary, per_dish, report, payload, notes = module.multi_detect(
         None, None, top_k=3, max_dishes=5, crop_padding=0.08
     )
-    assert annotated is None and state is None and rows == []
+    assert annotated is None and payload == {}
     assert "No image provided" in report
     assert "No image provided" in summary
     assert "capture a plate" in per_dish
 
 
-def test_multi_compute_applies_table_weights_and_totals(
-    synthetic_nutrition_csv, image_factory, tmp_path
-):
+def test_multi_ui_has_no_table_or_recompute_controls():
     module = _load_app()
-    pipeline = _make_multi(synthetic_nutrition_csv)
-    image = str(image_factory(tmp_path / "plate.png", size=32))
-    _, state, rows, _, _, _, _, _ = module.multi_detect(
-        pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
-    )
 
-    # Simulate the user editing "Edit Weight (g)" to 150 and 50, both included.
-    table = [row[:] for row in rows]
-    table[0][6] = 150
-    table[1][6] = 50
-    summary, per_dish, report, payload, notes = module.multi_compute(pipeline, state, table)
-
-    assert payload["totals_basis"] == "per_predicted_weight"
-    assert payload["total_grams"] == 200
-    assert "200 g" in summary
-    assert "Plate totals" in report
-
-
-def test_multi_compute_keeps_automatic_weights_when_table_unchanged(
-    synthetic_nutrition_csv, image_factory, tmp_path
-):
-    module = _load_app()
-    pipeline = _make_multi(
-        synthetic_nutrition_csv, regression=_stub_regression(mean=150.0)
-    )
-    image = str(image_factory(tmp_path / "plate.png", size=32))
-    _, state, rows, _, _, _, _, _ = module.multi_detect(
-        pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
-    )
-
-    summary, per_dish, report, payload, notes = module.multi_compute(pipeline, state, rows)
-
-    assert payload["totals_basis"] == "per_predicted_weight"
-    assert payload["total_grams"] == pytest.approx(300.0)
-    assert [d["weight"]["status"] for d in payload["dishes"]] == [
-        "estimated",
-        "estimated",
-    ]
-    assert all(
-        d["weight"]["method"] == "nutrition5k-regression" for d in payload["dishes"]
-    )
-    assert "300 g" in summary
-    assert "Plate totals" in report
-
-
-def test_multi_compute_manual_weight_overrides_automatic(
-    synthetic_nutrition_csv, image_factory, tmp_path
-):
-    module = _load_app()
-    pipeline = _make_multi(
-        synthetic_nutrition_csv, regression=_stub_regression(mean=150.0)
-    )
-    image = str(image_factory(tmp_path / "plate.png", size=32))
-    _, state, rows, _, _, _, _, _ = module.multi_detect(
-        pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
-    )
-
-    table = [row[:] for row in rows]
-    table[0][6] = 90  # explicit measured value overrides the prediction
-    summary, per_dish, report, payload, notes = module.multi_compute(pipeline, state, table)
-
-    assert payload["dishes"][0]["weight"]["status"] == "measured"
-    assert payload["dishes"][0]["weight"]["grams"] == pytest.approx(90.0)
-    assert payload["dishes"][1]["weight"]["status"] == "estimated"
-    assert payload["dishes"][1]["weight"]["grams"] == pytest.approx(150.0)
-    assert payload["total_grams"] == pytest.approx(240.0)
-    assert "240 g" in summary
-    assert "90 g" in per_dish
-    assert "measured" in per_dish
-    assert "Plate totals" in report
-
-    # Recomputing must not corrupt the detection state held by the UI.
-    assert state.dishes[0].weight.status == "estimated"
-    assert state.dishes[0].weight.grams == pytest.approx(150.0)
-
-
-def test_multi_compute_excludes_automatic_dish_from_total(
-    synthetic_nutrition_csv, image_factory, tmp_path
-):
-    module = _load_app()
-    pipeline = _make_multi(
-        synthetic_nutrition_csv, regression=_stub_regression(mean=150.0)
-    )
-    image = str(image_factory(tmp_path / "plate.png", size=32))
-    _, state, rows, _, _, _, _, _ = module.multi_detect(
-        pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
-    )
-
-    table = [row[:] for row in rows]
-    table[0][7] = False  # exclude dish 1 but keep its automatic weight shown
-    summary, per_dish, report, payload, notes = module.multi_compute(pipeline, state, table)
-
-    assert [d["included"] for d in payload["dishes"]] == [False, True]
-    assert payload["dishes"][0]["weight"]["grams"] == pytest.approx(150.0)
-    assert payload["total_grams"] == pytest.approx(150.0)
-    assert "1 included" in summary
-    assert "Excluded" in per_dish
-
-
-def test_multi_compute_reports_missing_weight_when_unavailable(
-    synthetic_nutrition_csv, image_factory, tmp_path
-):
-    module = _load_app()
-    pipeline = _make_multi(synthetic_nutrition_csv)  # no regression
-    image = str(image_factory(tmp_path / "plate.png", size=32))
-    _, state, rows, _, _, _, _, _ = module.multi_detect(
-        pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
-    )
-
-    assert rows[0][5] is None and rows[0][6] is None
-    assert rows[1][5] is None and rows[1][6] is None
-    summary, per_dish, report, payload, notes = module.multi_compute(pipeline, state, rows)
-
-    assert payload["totals_basis"] == "none"
-    assert payload["total_grams"] is None
-    assert "missing weight" in payload["totals_reason"]
-    assert "Incomplete" in summary
-    assert "Weight unavailable" in per_dish
-
-
-def test_multi_compute_respects_unchecked_include(
-    synthetic_nutrition_csv, image_factory, tmp_path
-):
-    module = _load_app()
-    pipeline = _make_multi(synthetic_nutrition_csv)
-    image = str(image_factory(tmp_path / "plate.png", size=32))
-    _, state, rows, _, _, _, _, _ = module.multi_detect(
-        pipeline, image, top_k=3, max_dishes=5, crop_padding=0.08
-    )
-
-    table = [row[:] for row in rows]
-    table[0][7] = False  # exclude dish 1
-    table[0][6] = 150
-    table[1][6] = 50
-    summary, per_dish, report, payload, notes = module.multi_compute(pipeline, state, table)
-
-    assert [d["included"] for d in payload["dishes"]] == [False, True]
-    assert payload["total_grams"] == 50
-    assert "50 g" in summary
-
-
-def test_multi_compute_without_state_prompts_to_detect():
-    module = _load_app()
-    summary, per_dish, report, payload, notes = module.multi_compute(None, None, [])
-    assert "Analyze Plate" in report
-    assert "Analyze Plate" in summary
-    assert "Analyze Plate" in per_dish
-    assert payload == {}
+    assert not hasattr(module, "multi_compute")
+    assert not hasattr(module, "_table_rows")
+    assert "fm-table-card" not in module.CSS
+    assert "fm-tip-row" not in module.CSS
 
 
 def test_styles_cover_about_text_and_dish_cards():

@@ -26,10 +26,10 @@ the development sandbox. They must be validated where those resources exist.
 
 ## Multi-dish totals
 
-- Per-dish weights can be supplied explicitly (CLI `--dish-grams`, the UI
-  **Edit Weight (g)** column, or `apply_weights`); otherwise the bundled
-  regressor estimates each dish crop. A single `--measured` weight is used only
-  when exactly one dish is present.
+- Per-dish weights can be supplied explicitly through the CLI `--dish-grams`
+  option or `apply_weights`; otherwise the bundled regressor estimates each dish
+  crop. A single `--measured` weight is used only when exactly one dish is
+  present.
 - A **plate total** is shown only when every *included* dish has both a usable
   weight and nutrition data. Otherwise it is reported as `unavailable` with a
   reason; the project never presents the sum of reference-quantity macros as a

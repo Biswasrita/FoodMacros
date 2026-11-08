@@ -8,9 +8,7 @@ tunnel and failures are reported gracefully instead of crashing.
 from __future__ import annotations
 
 import argparse
-import base64
 import html
-import io
 import math
 import sys
 from pathlib import Path
@@ -21,7 +19,6 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from foodmacros.config import AppConfig, load_config  # noqa: E402
-from foodmacros.detection.crop import crop_array, load_full_image  # noqa: E402
 from foodmacros.detection.visualize import draw_detections  # noqa: E402
 from foodmacros.env_checks import has_package  # noqa: E402
 from foodmacros.multi_pipeline import MultiDishPipeline  # noqa: E402
@@ -477,20 +474,6 @@ body, .gradio-container {
   border-radius: 14px !important;
 }
 
-.fm-tip-row {
-  align-items: center !important;
-  background: var(--fm-green-50) !important;
-  border: 1px solid #d7f0dd !important;
-  border-radius: 16px !important;
-  padding: 12px 18px !important;
-  margin-top: 4px !important;
-}
-
-.fm-tip-row p {
-  color: var(--fm-green-700);
-  font-size: 14px;
-}
-
 .fm-primary {
   background: var(--fm-green-900) !important;
   border-color: var(--fm-green-900) !important;
@@ -501,32 +484,6 @@ body, .gradio-container {
 .fm-primary:hover {
   background: var(--fm-green-700) !important;
   border-color: var(--fm-green-700) !important;
-}
-
-.fm-table-card .dataframe {
-  border-radius: 14px !important;
-}
-
-.fm-table-card table {
-  color: var(--fm-ink) !important;
-  font-size: 13.5px !important;
-}
-
-.fm-table-card table th {
-  background: var(--fm-green-50) !important;
-  color: var(--fm-green-900) !important;
-  font-size: 12px !important;
-  font-weight: 800 !important;
-}
-
-.fm-table-card table td {
-  color: var(--fm-ink) !important;
-  font-weight: 500 !important;
-}
-
-.fm-table-card table input {
-  color: var(--fm-ink) !important;
-  font-weight: 600 !important;
 }
 
 @media (max-width: 900px) {
@@ -608,38 +565,6 @@ def _clean_measured(measured):
         return None
     return candidate if candidate > 0 else None
 
-
-MULTI_HEADERS = [
-    "Dish",
-    "Food thumbnail",
-    "Detected Dish",
-    "Predicted Dish (Top-1)",
-    "Confidence",
-    "Predicted Weight (g)",
-    "Edit Weight (g)",
-    "Include",
-]
-MULTI_DATATYPE = [
-    "number",
-    "image",
-    "str",
-    "str",
-    "str",
-    "number",
-    "number",
-    "bool",
-]
-MULTI_COLUMN_WIDTHS = [
-    "70px",
-    "86px",
-    "130px",
-    "150px",
-    "100px",
-    "140px",
-    "130px",
-    "90px",
-]
-MULTI_STATIC_COLUMNS = [0, 1, 2, 3, 4, 5]
 
 _NUTRITION_META = [
     ("calories", "Calories", "kcal", 0, "flame"),
@@ -934,29 +859,6 @@ def _per_dish_nutrition_html(result, reason=None) -> str:
     )
 
 
-def _thumbnail_data_uri(image, dish, max_size: int = 96):
-    """Return a small base64 image for a dish crop, or ``None`` on failure."""
-    try:
-        import numpy as np
-        from PIL import Image
-
-        if isinstance(image, (str, Path)):
-            array = load_full_image(image)
-        else:
-            array = np.asarray(image)
-        box = getattr(dish, "box", None)
-        if box:
-            array = crop_array(array, box, padding=0.0)
-        thumbnail = Image.fromarray(array).convert("RGB")
-        thumbnail.thumbnail((max_size, max_size))
-        buffer = io.BytesIO()
-        thumbnail.save(buffer, format="PNG")
-        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-        return f"data:image/png;base64,{encoded}"
-    except Exception:
-        return None
-
-
 def _image_input(gr, label, height=None):
     """An image input with upload + camera, tolerant of older Gradio APIs."""
     kwargs = {"type": "filepath", "sources": ["upload", "webcam"], "label": label}
@@ -969,62 +871,15 @@ def _image_input(gr, label, height=None):
         return gr.Image(type="filepath", label=label)
 
 
-def _as_bool(value) -> bool:
-    if isinstance(value, str):
-        return value.strip().lower() in ("true", "1", "yes", "y", "x", "include")
-    return bool(value)
-
-
-def _as_grams(value):
-    if value is None:
-        return None
-    text = str(value).strip()
-    if text == "":
-        return None
-    try:
-        grams = float(text)
-    except (TypeError, ValueError):
-        return None
-    return grams if grams > 0 else None
-
-
-def _table_rows(table):
-    if table is None:
-        return []
-    if hasattr(table, "values"):  # pandas DataFrame
-        return [list(row) for row in table.values.tolist()]
-    if hasattr(table, "tolist"):
-        return table.tolist()
-    data = getattr(table, "data", None)  # Gradio 6 DataframeData
-    if isinstance(data, list):
-        return [list(row) for row in data]
-    return list(table)
-
-
-def _automatic_grams(dish):
-    """The dish's automatic regression weight, or ``None`` when unavailable."""
-    weight = getattr(dish, "weight", None)
-    if weight is None or not weight.available or weight.grams is None:
-        return None
-    if weight.status != "estimated":
-        return None
-    return float(weight.grams)
-
-
 def multi_detect(multi_pipeline, image, top_k, max_dishes, crop_padding):
     """Detect + classify a plate and return the UI values.
 
-    Returns ``(annotated, state, rows, summary_html, per_dish_html, report,
-    payload, notes)``. ``rows`` columns are ``[Dish, Thumbnail, Detected,
-    Predicted, Confidence, Predicted Weight, Edit Weight, Include]``. The state
-    carries the full result so weights can be applied later without re-detecting.
+    Returns ``(annotated, summary_html, per_dish_html, report, payload, notes)``.
     """
     if image is None:
         reason = "No image provided. Upload or capture a plate to begin."
         return (
             None,
-            None,
-            [],
             _plate_summary_html(None, reason=reason),
             _per_dish_nutrition_html(None, reason=reason),
             "No image provided.",
@@ -1041,8 +896,6 @@ def multi_detect(multi_pipeline, image, top_k, max_dishes, crop_padding):
         reason = f"Analysis unavailable: {result.reason}"
         return (
             None,
-            None,
-            [],
             _plate_summary_html(None, reason=reason),
             _per_dish_nutrition_html(None, reason=reason),
             reason,
@@ -1056,70 +909,12 @@ def multi_detect(multi_pipeline, image, top_k, max_dishes, crop_padding):
     except Exception:
         annotated = image
 
-    rows = []
-    for dish in result.dishes:
-        det = dish.detection
-        pred = dish.prediction
-        rows.append(
-            [
-                dish.index,
-                _thumbnail_data_uri(image, dish),
-                det.label if det else "Whole image",
-                pred.label if (pred is not None and pred.available) else "",
-                (
-                    f"{pred.confidence:.1%}"
-                    if (pred is not None and pred.available and pred.confidence is not None)
-                    else ""
-                ),
-                _automatic_grams(dish),
-                None,
-                True,
-            ]
-        )
     return (
         annotated,
-        result,
-        rows,
         _plate_summary_html(result),
         _per_dish_nutrition_html(result),
         format_multi_analysis(result),
         multi_analysis_to_dict(result),
-        LIMITATIONS,
-    )
-
-
-def multi_compute(multi_pipeline, state, table):
-    """Read the dish table's Include/Edit Weight columns and recompute nutrition."""
-    if state is None:
-        reason = "No detection result yet. Click 'Analyze Plate' first."
-        return (
-            _plate_summary_html(None, reason=reason),
-            _per_dish_nutrition_html(None, reason=reason),
-            reason,
-            {},
-            LIMITATIONS,
-        )
-    rows = _table_rows(table)
-    grams_by_index = {}
-    include_by_index = {}
-    for row in rows:
-        if not row:
-            continue
-        try:
-            idx = int(float(row[0]))
-        except (TypeError, ValueError, IndexError):
-            continue
-        include_by_index[idx] = _as_bool(row[7]) if len(row) > 7 else True
-        grams_by_index[idx] = _as_grams(row[6]) if len(row) > 6 else None
-
-    per_dish_grams = [grams_by_index.get(dish.index) for dish in state.dishes]
-    include = [include_by_index.get(dish.index, True) for dish in state.dishes]
-    updated = multi_pipeline.apply_weights(state, per_dish_grams, include)
-    return (
-        _plate_summary_html(updated),
-        _per_dish_nutrition_html(updated),
-        format_multi_analysis(updated),
-        multi_analysis_to_dict(updated),
         LIMITATIONS,
     )
 
@@ -1225,9 +1020,6 @@ def build_interface(pipeline: FoodAnalysisPipeline, multi_pipeline=None):
     def run_multi_detect(image, top_k, max_dishes, crop_padding):
         return multi_detect(multi_pipeline, image, top_k, max_dishes, crop_padding)
 
-    def run_multi_compute(state, table):
-        return multi_compute(multi_pipeline, state, table)
-
     def switch_view(choice):
         return (
             gr.update(visible=choice == "Single Dish"),
@@ -1254,7 +1046,7 @@ def build_interface(pipeline: FoodAnalysisPipeline, multi_pipeline=None):
 
         with gr.Column(visible=False) as multi_view:
             if multi_pipeline is not None:
-                _multi_dish_tab(multi_pipeline, run_multi_detect, run_multi_compute, gr)
+                _multi_dish_tab(multi_pipeline, run_multi_detect, gr)
             else:
                 with gr.Column(elem_classes="fm-card"):
                     gr.Markdown(
@@ -1336,17 +1128,16 @@ def _single_dish_tab(pipeline: FoodAnalysisPipeline, run, gr):
     )
 
 
-def _multi_dish_tab(multi_pipeline: MultiDishPipeline, run_multi_detect, run_multi_compute, gr):
+def _multi_dish_tab(multi_pipeline: MultiDishPipeline, run_multi_detect, gr):
     det_cfg = multi_pipeline.config.detection
-    state = gr.State(value=None)
 
     with gr.Row(equal_height=False, elem_classes="fm-layout-row"):
         with gr.Column(scale=1, min_width=300, elem_classes="fm-card"):
             gr.HTML(
                 _section_html(
                     "Multi-Dish Analysis",
-                    "Detect every dish on the plate, then fine-tune weights before "
-                    "recomputing the plate total.",
+                    "Detect every dish on the plate and review the plate summary "
+                    "and nutrition for each dish.",
                 )
             )
             top_k = gr.Slider(
@@ -1393,43 +1184,11 @@ def _multi_dish_tab(multi_pipeline: MultiDishPipeline, run_multi_detect, run_mul
         with gr.Column(scale=1, min_width=280, elem_classes="fm-card fm-summary"):
             summary_out = gr.HTML(_plate_summary_html(None))
 
-    with gr.Column(elem_classes="fm-card fm-table-card"):
-        gr.HTML(
-            _section_html(
-                "Per-Dish Results",
-                "Estimated weights are filled automatically. Add your own measured "
-                "weight in Edit Weight (g), or untick Include to skip a dish.",
-            )
-        )
-        table_out = gr.Dataframe(
-            headers=MULTI_HEADERS,
-            datatype=MULTI_DATATYPE,
-            interactive=True,
-            label=None,
-            show_label=False,
-            max_height=520,
-            wrap=True,
-            column_widths=MULTI_COLUMN_WIDTHS,
-            pinned_columns=1,
-            static_columns=MULTI_STATIC_COLUMNS,
-        )
-
     with gr.Column(elem_classes="fm-card"):
         per_dish_out = gr.HTML(_per_dish_nutrition_html(None))
 
-    with gr.Row(elem_classes="fm-tip-row fm-layout-row"):
-        with gr.Column(scale=4):
-            gr.Markdown(
-                "**Tip:** You can edit the **Edit Weight (g)** column for any dish. "
-                "Leave it blank to keep the automatic regression estimate."
-            )
-        with gr.Column(scale=1, min_width=200):
-            compute_button = gr.Button(
-                "Recompute Nutrition", variant="primary", elem_classes="fm-primary"
-            )
-
     with gr.Accordion("Technical details", open=False):
-        report_out = gr.Textbox(label="Raw per-dish report", lines=16)
+        report_out = gr.Textbox(label="Raw analysis report", lines=16)
         json_out = gr.JSON(label="Structured result")
         notes_out = gr.Markdown(value=LIMITATIONS, elem_classes="fm-limitations")
 
@@ -1438,19 +1197,12 @@ def _multi_dish_tab(multi_pipeline: MultiDishPipeline, run_multi_detect, run_mul
         inputs=[image_input, top_k, max_dishes, crop_padding],
         outputs=[
             annotated_out,
-            state,
-            table_out,
             summary_out,
             per_dish_out,
             report_out,
             json_out,
             notes_out,
         ],
-    )
-    compute_button.click(
-        run_multi_compute,
-        inputs=[state, table_out],
-        outputs=[summary_out, per_dish_out, report_out, json_out, notes_out],
     )
 
 

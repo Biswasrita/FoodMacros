@@ -214,7 +214,7 @@ provides fixtures: `image_factory`, `synthetic_dataset`, `synthetic_nutrition_cs
 | `test_scripts.py` | 5 | CLI argument handling (missing image, `--json`) |
 | `test_env_checks.py` | 4 | Environment report / mixed-precision helpers |
 
-**Total: 194 test functions** across the 26 files above (192 pass, 2 skip).
+**Total: 197 test functions** across the 26 files above (195 pass, 2 skip).
 
 ## `.pytest_cache/` (5 files, generated) - G
 

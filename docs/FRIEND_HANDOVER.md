@@ -73,7 +73,7 @@ Command-line analysis estimates weight automatically from the bundled model; pas
 `python scripts/run_multi_analysis.py plate.jpg` estimates each dish; add
 `--dish-grams "200,100,50"` to override selected dishes.
 
-Tests: `python -m pytest tests -q` → **192 passed, 2 skipped**.
+Tests: `python -m pytest tests -q` → **195 passed, 2 skipped**.
 
 ## How the code is organized
 
@@ -88,7 +88,7 @@ Tests: `python -m pytest tests -q` → **192 passed, 2 skipped**.
 - `data/nutrition.csv` - the nutrition table.
 - `model_outputs/` - the original training outputs and **the** training
   notebook (local-only, gitignored).
-- `tests/` - 194 pytest functions.
+- `tests/` - 197 pytest functions.
 
 ## What is verified and what is not
 

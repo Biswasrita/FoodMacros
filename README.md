@@ -80,7 +80,7 @@ Final_Year_Project/
   src/foodmacros/          the reusable package (classification, detection, nutrition, weight, pipeline)
   app/gradio_app.py        the web UI
   scripts/                 command-line tools
-  tests/                   pytest suite (194 test functions; 192 pass, 2 skipped)
+  tests/                   pytest suite (197 test functions; 195 pass, 2 skipped)
   docs/                    user guides (see below)
 ```
 
@@ -104,15 +104,15 @@ The `docs/` folder is written for a beginner who is new to the project:
 python -m pytest tests -q
 ```
 
-The suite has **194 test functions** across 26 test files and currently reports
-**192 passed, 2 skipped** (`tests/conftest.py` puts `src/` on the path
+The suite has **197 test functions** across 26 test files and currently reports
+**195 passed, 2 skipped** (`tests/conftest.py` puts `src/` on the path
 automatically, so no extra setup is needed).
 
 ## What is verified locally vs. what is not
 
 Verified in this development environment:
 
-- The full pytest suite passes (192 passed, 2 skipped).
+- The full pytest suite passes (195 passed, 2 skipped).
 - `scripts/smoke_test.py` trains a tiny classifier, saves it, reloads it through
   the pipeline, and analyzes an image end to end.
 - The bundled food detector loads and detects real food; the classifier assigns
