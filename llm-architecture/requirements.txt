@@ -1,0 +1,11 @@
+torch
+torchvision
+ultralytics
+timm
+opencv-python
+streamlit
+pillow
+numpy
+matplotlib
+requests
+google-genai
