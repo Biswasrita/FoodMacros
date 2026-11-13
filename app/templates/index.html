@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodMacros Vision AI · Autonomous Food Scanner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #070b12;
+      --card-bg: rgba(15, 23, 42, 0.78);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --sub-card: rgba(15, 23, 42, 0.6);
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Mesh Glow */
+    .bg-mesh {
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.05) 0px, transparent 60%);
+    }
+
+    /* Laser Scanning Line Animation */
+    @keyframes laser-sweep {
+      0% { top: 0%; opacity: 0; }
+      12% { opacity: 1; }
+      88% { opacity: 1; }
+      100% { top: 96%; opacity: 0; }
+    }
+    .laser-line {
+      animation: laser-sweep 1.8s ease-in-out infinite alternate;
+      box-shadow: 0 0 20px #10b981, 0 0 40px #06b6d4;
+    }
+
+    /* Glass Panels */
+    .glass-panel {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      transition: all 0.25s ease;
+    }
+
+    /* Interactive Bounding Boxes */
+    .vision-box {
+      position: absolute;
+      border: 3px solid #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+    }
+    .vision-box:hover, .vision-box.active {
+      background: rgba(56, 189, 248, 0.25) !important;
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.5) !important;
+      z-index: 30;
+      transform: scale(1.01);
+    }
+    .vision-box.hide-shading {
+      background: transparent !important;
+    }
+
+    /* Floating Vision Pin */
+    .vision-pin {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      margin-top: -6px;
+      z-index: 25;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .vision-pin:hover {
+      transform: translate(-50%, -100%) scale(1.15);
+      z-index: 35;
+    }
+
+    /* Light Mode Overrides */
+    body.light-theme {
+      --bg-color: #f8fafc;
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --card-border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --sub-card: #f1f5f9;
+    }
+    body.light-theme .glass-panel {
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06);
+    }
+    body.light-theme .text-white {
+      color: #0f172a !important;
+    }
+    body.light-theme .text-slate-300,
+    body.light-theme .text-slate-400 {
+      color: #475569 !important;
+    }
+    body.light-theme .bg-slate-900\/60,
+    body.light-theme .bg-slate-900\/80,
+    body.light-theme .bg-slate-900\/30,
+    body.light-theme .bg-slate-800,
+    body.light-theme .bg-slate-800\/80,
+    body.light-theme .bg-black\/60 {
+      background-color: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-theme header {
+      background: rgba(255, 255, 255, 0.88) !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    /* Custom Range Slider */
+    input[type=range] {
+      accent-color: #10b981;
+    }
+
+    /* Hide element smoothly */
+    .fade-out {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.25s, transform 0.25s;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-mesh flex flex-col justify-between selection:bg-emerald-500 selection:text-black">
+
+  <!-- ======================================================== -->
+  <!-- 3D HOLOGRAPHIC CINEMATIC INTRO SPLASH OVERLAY            -->
+  <!-- ======================================================== -->
+  <div id="fm-3d-splash" class="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/95 backdrop-blur-3xl transition-all duration-700">
+    <div class="flex flex-col items-center text-center max-w-2xl px-6 py-10 relative">
+      
+      <!-- 3D Hologram Spinner -->
+      <div class="w-32 h-32 relative mb-6 flex items-center justify-center [perspective:1000px]">
+        <div class="w-28 h-28 absolute rounded-full border-2 border-dashed border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.6)] animate-spin [transform:rotateX(65deg)]"></div>
+        <div class="w-20 h-20 absolute rounded-full border-2 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.7)] animate-spin [transform:rotateX(60deg)_rotateY(25deg)] [animation-direction:reverse]"></div>
+        <div class="text-4xl filter drop-shadow-[0_0_20px_#10b981] animate-bounce">🍽️</div>
+      </div>
+
+      <span class="px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 text-xs font-extrabold uppercase tracking-widest mb-3">
+        AI Food Vision 3.0
+      </span>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">
+        FoodMacros <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Vision AI</span>
+      </h1>
+      <p class="text-slate-400 text-sm max-w-md mb-8">
+        Autonomous Neural Food Localization · Volume Regression · Real-Time Macros
+      </p>
+
+      <!-- 3D Floating Feature Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-8 [perspective:1000px]">
+        <div class="p-4 rounded-2xl bg-slate-900/80 border border-white/10 [transform:rotateY(-6deg)_translateZ(10px)] hover:[transform:translateZ(30px)_scale(1.05)] transition duration-300">
+          <div class="text-2xl mb-1">🎯</div>
+          <div class="text-xs font-bold text-white">YOLOv8 Localizer</div>
+          <div class="text-[11px] text-slate-400 mt-1">Multi-Dish Bounding Regions</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)] [transform:translateZ(25px)] hover:[transform:translateZ(35px)_scale(1.05)] transition duration-300">
+          <div class="text-2xl mb-1">⚖️</div>
+          <div class="text-xs font-bold text-white">Mass Regressor</div>
+          <div class="text-[11px] text-slate-400 mt-1">Volume & Serving Mass</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-900/80 border border-white/10 [transform:rotateY(6deg)_translateZ(10px)] hover:[transform:translateZ(30px)_scale(1.05)] transition duration-300">
+          <div class="text-2xl mb-1">⚡</div>
+          <div class="text-xs font-bold text-white">Macro Engine</div>
+          <div class="text-[11px] text-slate-400 mt-1">Calorie Donut & Macro Split</div>
+        </div>
+      </div>
+
+      <!-- Progress Bar & Skip Button -->
+      <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden mb-5">
+        <div class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 w-full animate-[pulse_1s_infinite]"></div>
+      </div>
+      <button onclick="dismissSplash()" class="px-6 py-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-extrabold text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition">
+        Enter Dashboard ⚡
+      </button>
+
+    </div>
+  </div>
+  <script>
+    function dismissSplash() {
+      const s = document.getElementById('fm-3d-splash');
+      if (s) {
+        s.style.opacity = '0';
+        s.style.transform = 'scale(1.1) translateZ(50px)';
+        s.style.pointerEvents = 'none';
+        setTimeout(() => s.remove(), 700);
+      }
+    }
+    setTimeout(dismissSplash, 2600);
+  </script>
+
+  <!-- ======================================================== -->
+  <!-- HEADER & NAVIGATION                                      -->
+  <!-- ======================================================== -->
+  <header class="border-b border-white/5 bg-slate-900/60 backdrop-blur-xl sticky top-0 z-50 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Logo & Engine Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
+            FoodMacros <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Vision AI</span>
+          </h1>
+          <p class="text-xs text-slate-400 font-medium hidden sm:block">Deep Learning Food Detection, Mass & Macro Intelligence</p>
+        </div>
+      </div>
+
+      <!-- Center: Single Dish vs Multi-Dish Mode Segmented Switcher -->
+      <div class="flex items-center p-1 rounded-2xl bg-slate-800/80 border border-white/10 shadow-inner">
+        <button id="btnModeSingle" onclick="switchMode('single')" class="px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <span>🍽️</span> Single Dish Scanner
+        </button>
+        <button id="btnModeMulti" onclick="switchMode('multi')" class="px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+          <span>🍱</span> Multi-Dish (Plate Scanner)
+        </button>
+      </div>
+
+      <!-- Right Controls: Light/Dark Mode + New Scan -->
+      <div class="flex items-center gap-3">
+        <button onclick="toggleTheme()" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-white/10 transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+          <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
+        </button>
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse"></span>
+          YOLOv8 + EfficientNet
+        </div>
+        <button id="btnNewScan" onclick="resetToCapture()" class="hidden px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          New Scan
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ======================================================== -->
+  <!-- MAIN CONTAINER                                           -->
+  <!-- ======================================================== -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1">
+
+    <!-- ======================================================== -->
+    <!-- STAGE 1: CAPTURE & UPLOAD HERO VIEW                      -->
+    <!-- ======================================================== -->
+    <div id="captureStage" class="max-w-3xl mx-auto text-center py-4 transition-all duration-300">
+      
+      <div class="mb-6">
+        <span id="heroBadge" class="px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+          🍱 Multi-Dish Autonomous Plate Scanner
+        </span>
+        <h2 id="heroTitle" class="text-3xl sm:text-4xl font-extrabold text-white mt-3 tracking-tight">
+          Snap Your Plate to Detect <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Every Dish & Macro</span>
+        </h2>
+        <p id="heroSubtitle" class="text-slate-400 text-sm mt-2 max-w-lg mx-auto">
+          Deep learning traces bounding regions around all food items, estimates portion mass, and calculates macro totals with honest reporting.
+        </p>
+      </div>
+
+      <!-- Dropzone / Live Camera Box -->
+      <div class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden group">
+        
+        <!-- Live Webcam Viewfinder -->
+        <div id="webcamContainer" class="hidden relative rounded-2xl overflow-hidden aspect-[4/3] bg-black mb-4 border border-emerald-500/30">
+          <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+          <div class="absolute inset-8 border border-dashed border-emerald-400/50 rounded-2xl pointer-events-none flex items-center justify-center">
+            <span class="text-xs font-bold text-emerald-400/80 bg-black/60 px-3 py-1 rounded-full">Center Food in Frame</span>
+          </div>
+          <button onclick="captureFromWebcam()" class="absolute bottom-6 left-1/2 -translate-x-1/2 px-7 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold shadow-[0_0_30px_rgba(16,185,129,0.5)] transition flex items-center gap-2 text-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Capture Photo
+          </button>
+        </div>
+
+        <!-- File Upload Dropzone -->
+        <div id="dropzoneView" class="border-2 border-dashed border-slate-700/80 hover:border-emerald-500/50 rounded-2xl p-8 sm:p-12 flex flex-col items-center justify-center cursor-pointer transition bg-slate-900/30" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+          
+          <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 shadow-[0_0_25px_rgba(16,185,129,0.15)] group-hover:scale-110 transition duration-300">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <p class="text-white font-bold text-base">Drop your food photo here, or <span class="text-emerald-400 underline">browse files</span></p>
+          <p class="text-slate-400 text-xs mt-1">Supports JPEG, PNG, WEBP from any phone camera or desktop</p>
+          
+          <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button type="button" onclick="event.stopPropagation(); startWebcam()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white border border-white/10 transition flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Use Live Webcam
+            </button>
+          </div>
+        </div>
+
+        <!-- 1-Click Interactive Demo Samples -->
+        <div class="mt-6 pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+          <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+            <span>✨</span> 1-Click Test Samples:
+          </span>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="loadSample('salad')" class="px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-white/10 transition flex items-center gap-2 shadow-sm hover:border-emerald-500/40">
+              <span>🥗</span> Greek Salad & Greens
+            </button>
+            <button onclick="loadSample('pizza')" class="px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-white/10 transition flex items-center gap-2 shadow-sm hover:border-cyan-500/40">
+              <span>🍕</span> Artisan Pizza
+            </button>
+            <button onclick="loadSample('plate')" class="px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-white/10 transition flex items-center gap-2 shadow-sm hover:border-amber-500/40">
+              <span>🍱</span> Full Dinner Plate
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- STAGE 2: LASER SWEEP SCANNING ANIMATION                  -->
+    <!-- ======================================================== -->
+    <div id="scanningStage" class="hidden max-w-2xl mx-auto py-8 text-center transition-all duration-300">
+      <div class="glass-panel rounded-3xl p-8 relative overflow-hidden">
+        
+        <div class="relative w-full max-w-md mx-auto aspect-[4/3] rounded-2xl overflow-hidden border border-emerald-500/40 bg-black/60 shadow-[0_0_40px_rgba(16,185,129,0.25)]">
+          <img id="scanningImgPreview" class="w-full h-full object-cover opacity-60 filter brightness-90" src="" alt="Scanning Food">
+          
+          <!-- Moving Laser Sweep Line -->
+          <div class="laser-line absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent"></div>
+          
+          <!-- Subtle Grid Overlay -->
+          <div class="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent pointer-events-none"></div>
+          
+          <!-- Animated Scanner Reticle -->
+          <div class="absolute inset-8 border border-emerald-500/30 rounded-2xl pointer-events-none flex items-center justify-center">
+            <div class="w-14 h-14 border-2 border-dashed border-cyan-400/60 rounded-full animate-spin"></div>
+          </div>
+        </div>
+
+        <!-- Terminal Status Feed -->
+        <div class="mt-6 font-mono text-left max-w-md mx-auto text-xs bg-black/60 p-4 rounded-xl border border-white/10 space-y-2">
+          <div id="scanStep1" class="text-emerald-400 flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            [0.2s] YOLOv8 localizing food boundaries & regions...
+          </div>
+          <div id="scanStep2" class="text-slate-500 flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+            [0.6s] EfficientNetB0 classifying food categories...
+          </div>
+          <div id="scanStep3" class="text-slate-500 flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+            [1.0s] Regression mass estimation & macro calculation...
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- STAGE 3: INTERACTIVE RESULTS & DETECTION OVERLAY CANVAS  -->
+    <!-- ======================================================== -->
+    <div id="resultsStage" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 transition-all duration-300">
+      
+      <!-- Left Column: The Interactive Canvas with Glowing Bounding Boxes -->
+      <div class="lg:col-span-7 flex flex-col gap-4">
+        
+        <div class="glass-panel rounded-3xl p-4 sm:p-5 relative">
+          
+          <!-- Canvas Top Controls Toolbar -->
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3 px-1">
+            <div class="flex items-center gap-2">
+              <span id="badgeDishCount" class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-extrabold flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="dishCountLabel">0 Food Areas Localized</span>
+              </span>
+            </div>
+            
+            <!-- Canvas Overlay Filter Toggles -->
+            <div class="flex items-center gap-2 text-xs">
+              <label class="flex items-center gap-1.5 text-slate-300 font-semibold cursor-pointer bg-slate-800/80 px-2.5 py-1 rounded-lg border border-white/5">
+                <input type="checkbox" id="toggleBoxes" checked onchange="handleCanvasToggle()" class="rounded text-emerald-500 focus:ring-0">
+                <span>Boxes</span>
+              </label>
+              <label class="flex items-center gap-1.5 text-slate-300 font-semibold cursor-pointer bg-slate-800/80 px-2.5 py-1 rounded-lg border border-white/5">
+                <input type="checkbox" id="toggleShading" checked onchange="handleCanvasToggle()" class="rounded text-emerald-500 focus:ring-0">
+                <span>Shading</span>
+              </label>
+              <label class="flex items-center gap-1.5 text-slate-300 font-semibold cursor-pointer bg-slate-800/80 px-2.5 py-1 rounded-lg border border-white/5">
+                <input type="checkbox" id="toggleLabels" checked onchange="handleCanvasToggle()" class="rounded text-emerald-500 focus:ring-0">
+                <span>Pins</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- The Image Viewport with SVG/HTML Bounding Overlays -->
+          <div class="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black/60 shadow-2xl" id="plateCanvasContainer">
+            <img id="inspectedPlateImg" class="w-full h-auto block object-contain" src="" alt="Analyzed Meal" onload="renderOverlays()">
+            
+            <!-- Dynamic SVG & HTML Overlay Layer (Rendered by JS) -->
+            <div id="overlayLayer" class="absolute inset-0 pointer-events-auto"></div>
+          </div>
+
+          <!-- Bottom Canvas Hint -->
+          <div class="mt-3 flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              Click any bounding box or pin on the image to inspect
+            </span>
+            <span class="text-slate-500 font-mono text-[11px]" id="resResolutionText"></span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Right Column: Single Dish OR Multi-Dish Macro Inspector -->
+      <div class="lg:col-span-5 flex flex-col gap-4">
+        
+        <!-- Focused Dish Interactive Card -->
+        <div id="focusedDishCard" class="glass-panel rounded-3xl p-6 border-l-4 border-l-emerald-400 relative">
+          
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="focusDishNum" class="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 text-xs font-extrabold flex items-center justify-center">#1</span>
+                <span id="focusDishMatch" class="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">92% Match</span>
+                <span id="focusDishStatus" class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/10">Estimated</span>
+              </div>
+              <h3 id="focusDishName" class="text-2xl font-extrabold text-white mt-1 capitalize tracking-tight">Dish Name</h3>
+            </div>
+            
+            <!-- Include Toggle (For Multi-Dish) -->
+            <label id="includeToggleContainer" class="flex items-center gap-2 cursor-pointer bg-slate-800/80 px-3 py-1.5 rounded-xl border border-white/10">
+              <input type="checkbox" id="focusDishInclude" checked onchange="toggleDishInclude()" class="rounded text-emerald-500 focus:ring-0">
+              <span class="text-xs font-bold text-slate-300">Include</span>
+            </label>
+          </div>
+
+          <!-- Portion Weight Slider -->
+          <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/5 mb-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3a4 4 0 00-3.8 5.2L5 21h14L15.8 8.2A4 4 0 0012 3Z"/></svg>
+                Portion Weight
+              </span>
+              <span id="focusWeightDisplay" class="text-base font-extrabold text-white font-mono">180.0 g</span>
+            </div>
+            <input type="range" id="focusWeightSlider" min="20" max="600" step="5" value="180" oninput="handleWeightSlider(this.value)" class="w-full cursor-pointer h-2 bg-slate-700 rounded-lg">
+            
+            <!-- Quick Multipliers -->
+            <div class="flex items-center gap-2 mt-3">
+              <button onclick="setMultiplier(0.5)" class="flex-1 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-white/5 transition">0.5x</button>
+              <button onclick="setMultiplier(1.0)" class="flex-1 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold border border-emerald-500/30 transition">1.0x</button>
+              <button onclick="setMultiplier(1.5)" class="flex-1 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-white/5 transition">1.5x</button>
+              <button onclick="setMultiplier(2.0)" class="flex-1 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-white/5 transition">2.0x</button>
+            </div>
+          </div>
+
+          <!-- Nutritional 4-Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+            <div class="bg-slate-900/60 p-3 rounded-xl border border-white/5 text-center">
+              <div class="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Calories</div>
+              <div id="focusCal" class="text-xl font-extrabold text-emerald-400 mt-0.5 font-mono">240</div>
+              <div class="text-[10px] text-slate-500">kcal</div>
+            </div>
+            <div class="bg-slate-900/60 p-3 rounded-xl border border-white/5 text-center">
+              <div class="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Protein</div>
+              <div id="focusProtein" class="text-xl font-extrabold text-cyan-400 mt-0.5 font-mono">18.5</div>
+              <div class="text-[10px] text-slate-500">grams</div>
+            </div>
+            <div class="bg-slate-900/60 p-3 rounded-xl border border-white/5 text-center">
+              <div class="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Carbs</div>
+              <div id="focusCarbs" class="text-xl font-extrabold text-amber-400 mt-0.5 font-mono">28.0</div>
+              <div class="text-[10px] text-slate-500">grams</div>
+            </div>
+            <div class="bg-slate-900/60 p-3 rounded-xl border border-white/5 text-center">
+              <div class="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Fats</div>
+              <div id="focusFats" class="text-xl font-extrabold text-rose-400 mt-0.5 font-mono">6.2</div>
+              <div class="text-[10px] text-slate-500">grams</div>
+            </div>
+          </div>
+
+          <!-- Top-K Classification Alternatives -->
+          <div id="topKContainer" class="pt-3 border-t border-white/5">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Classifier Alternatives:</span>
+              <span class="text-slate-500 text-[10px]">Top Predictions</span>
+            </div>
+            <div id="topKList" class="space-y-1.5"></div>
+          </div>
+
+          <!-- Multi-Dish Switcher List (Only shown in Multi mode) -->
+          <div id="dishSwitcherContainer" class="pt-3 border-t border-white/5 mt-3">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Switch Dish on Plate:</div>
+            <div id="dishThumbnailList" class="flex items-center gap-2 overflow-x-auto pb-1"></div>
+          </div>
+
+        </div>
+
+        <!-- Total Meal Nutrition Tray (Donut + Split Bar) -->
+        <div id="totalTrayCard" class="glass-panel rounded-3xl p-6 relative overflow-hidden bg-gradient-to-br from-slate-900/90 to-emerald-950/20 border border-emerald-500/20">
+          
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <h4 id="trayTitle" class="text-base font-extrabold text-white tracking-tight">Total Plate Summary</h4>
+            </div>
+            <span id="trayTotalGrams" class="text-xs font-mono font-bold text-slate-300 px-2.5 py-1 rounded-lg bg-black/40 border border-white/10">350.0 g Total</span>
+          </div>
+
+          <!-- Donut Ring & Total Calories -->
+          <div class="flex items-center gap-5 my-2">
+            
+            <!-- Circular SVG Calorie Donut -->
+            <div class="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+                <circle id="donutProtein" cx="50" cy="50" r="40" fill="none" stroke="#06b6d4" stroke-width="10" stroke-linecap="round"/>
+                <circle id="donutCarbs" cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" stroke-width="10"/>
+                <circle id="donutFats" cx="50" cy="50" r="40" fill="none" stroke="#f43f5e" stroke-width="10"/>
+              </svg>
+              <div class="absolute text-center">
+                <span id="trayCalories" class="text-xl font-extrabold text-white block font-mono leading-none">650</span>
+                <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">kcal</span>
+              </div>
+            </div>
+
+            <!-- Macro Split Bar & Percentages -->
+            <div class="flex-1">
+              <div class="flex justify-between text-xs font-extrabold mb-1.5 font-mono">
+                <span class="text-cyan-400">P <span id="trayProtein">42g</span></span>
+                <span class="text-amber-400">C <span id="trayCarbs">68g</span></span>
+                <span class="text-rose-400">F <span id="trayFats">18g</span></span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden flex">
+                <div id="barProtein" class="h-full bg-cyan-400 transition-all duration-300" style="width: 30%"></div>
+                <div id="barCarbs" class="h-full bg-amber-400 transition-all duration-300" style="width: 50%"></div>
+                <div id="barFats" class="h-full bg-rose-400 transition-all duration-300" style="width: 20%"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-400 font-semibold mt-1.5">
+                <span>Protein (4 kcal/g)</span>
+                <span>Carbs (4 kcal/g)</span>
+                <span>Fats (9 kcal/g)</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/5 py-4 text-center text-xs text-slate-500">
+    FoodMacros Vision Engine · Real Deep Learning Models: EfficientNetB0 (Food-101) & YOLOv8 Food Detector · Calibrated Macro Estimator
+  </footer>
+
+  <!-- ======================================================== -->
+  <!-- CLIENT JAVASCRIPT LOGIC                                  -->
+  <!-- ======================================================== -->
+  <script>
+    // State
+    let activeMode = 'multi'; // 'single' or 'multi'
+    let currentAnalysis = null;
+    let focusedDishIndex = 1;
+    let webcamStream = null;
+
+    // Palette matching visualizer
+    const BOX_COLORS = [
+      '#10b981', '#06b6d4', '#f59e0b', '#8b5cf6', '#f43f5e',
+      '#3b82f6', '#eab308', '#a855f7', '#14b8a6', '#ef4444'
+    ];
+
+    function getColor(i) {
+      return BOX_COLORS[(i - 1) % BOX_COLORS.length];
+    }
+
+    // Switch between Single Dish and Multi-Dish Modes
+    function switchMode(mode) {
+      activeMode = mode;
+      const btnSingle = document.getElementById('btnModeSingle');
+      const btnMulti = document.getElementById('btnModeMulti');
+      const heroBadge = document.getElementById('heroBadge');
+      const heroTitle = document.getElementById('heroTitle');
+      const heroSubtitle = document.getElementById('heroSubtitle');
+
+      if (mode === 'single') {
+        btnSingle.className = "px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.25)]";
+        btnMulti.className = "px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white";
+        heroBadge.textContent = "🍽️ Single Dish Macro Scanner";
+        heroTitle.innerHTML = `Scan One Food Item for <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Instant Accurate Macros</span>`;
+        heroSubtitle.textContent = "Traces the food bounding area, classifies the dish with Top-5 confidence rankings, and scales macros.";
+      } else {
+        btnMulti.className = "px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.25)]";
+        btnSingle.className = "px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white";
+        heroBadge.textContent = "🍱 Multi-Dish Autonomous Plate Scanner";
+        heroTitle.innerHTML = `Snap Your Plate to Detect <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Every Dish & Macro</span>`;
+        heroSubtitle.textContent = "Deep learning traces bounding regions around all food items, estimates portion mass, and calculates macro totals.";
+      }
+
+      // If results are open, re-analyze or update display
+      if (currentAnalysis) {
+        // Re-render
+        displayResults(currentAnalysis);
+      }
+    }
+
+    // Load Sample Dish
+    async function loadSample(sampleKey) {
+      showScanningStage();
+      try {
+        const res = await fetch(`/api/sample/${sampleKey}`);
+        const data = await res.json();
+        if (data.filename) {
+          analyzeImage({ filename: data.filename, mode: activeMode });
+        } else {
+          throw new Error(data.error || "Failed to load sample");
+        }
+      } catch (err) {
+        alert("Failed to load sample: " + err);
+        resetToCapture();
+      }
+    }
+
+    // Handle File Drop / Select
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('mode', activeMode);
+      
+      showScanningStage(file);
+      analyzeImage(formData, true);
+    }
+
+    // Live Webcam Controls
+    async function startWebcam() {
+      const container = document.getElementById('webcamContainer');
+      const dropzone = document.getElementById('dropzoneView');
+      const video = document.getElementById('webcamVideo');
+      
+      try {
+        webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = webcamStream;
+        container.classList.remove('hidden');
+        dropzone.classList.add('hidden');
+      } catch (err) {
+        alert("Webcam access error: " + err);
+      }
+    }
+
+    function captureFromWebcam() {
+      const video = document.getElementById('webcamVideo');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(t => t.stop());
+      }
+      
+      showScanningStage();
+      analyzeImage({ image_base64: dataUrl, mode: activeMode });
+    }
+
+    function showScanningStage(file) {
+      document.getElementById('captureStage').classList.add('hidden');
+      document.getElementById('resultsStage').classList.add('hidden');
+      document.getElementById('scanningStage').classList.remove('hidden');
+      document.getElementById('btnNewScan').classList.remove('hidden');
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => document.getElementById('scanningImgPreview').src = e.target.result;
+        reader.readAsDataURL(file);
+      }
+
+      // Step animations
+      const s1 = document.getElementById('scanStep1');
+      const s2 = document.getElementById('scanStep2');
+      const s3 = document.getElementById('scanStep3');
+      s1.className = "text-emerald-400 flex items-center gap-2";
+      s2.className = "text-slate-500 flex items-center gap-2";
+      s3.className = "text-slate-500 flex items-center gap-2";
+
+      setTimeout(() => {
+        s2.className = "text-emerald-400 flex items-center gap-2";
+      }, 700);
+      setTimeout(() => {
+        s3.className = "text-emerald-400 flex items-center gap-2";
+      }, 1400);
+    }
+
+    async function analyzeImage(payload, isFormData = false) {
+      try {
+        const options = { method: 'POST' };
+        if (isFormData) {
+          options.body = payload;
+        } else {
+          options.headers = { 'Content-Type': 'application/json' };
+          options.body = JSON.stringify(payload);
+        }
+
+        const res = await fetch('/api/analyze', options);
+        const data = await res.json();
+        
+        if (data.error) {
+          alert("Analysis error: " + data.error);
+          resetToCapture();
+          return;
+        }
+
+        currentAnalysis = data;
+        displayResults(data);
+      } catch (err) {
+        alert("Network error: " + err);
+        resetToCapture();
+      }
+    }
+
+    function displayResults(data) {
+      document.getElementById('scanningStage').classList.add('hidden');
+      document.getElementById('captureStage').classList.add('hidden');
+      document.getElementById('resultsStage').classList.remove('hidden');
+
+      const img = document.getElementById('inspectedPlateImg');
+      img.src = data.image_url;
+      
+      const count = data.dishes.length;
+      document.getElementById('dishCountLabel').textContent = `${count} Food ${count === 1 ? 'Area' : 'Areas'} Localized`;
+      document.getElementById('resResolutionText').textContent = `${data.width} × ${data.height} px`;
+
+      // Mode specific adjustments
+      const dishSwitcher = document.getElementById('dishSwitcherContainer');
+      const includeToggle = document.getElementById('includeToggleContainer');
+      const trayTitle = document.getElementById('trayTitle');
+
+      if (activeMode === 'single') {
+        dishSwitcher.classList.add('hidden');
+        includeToggle.classList.add('hidden');
+        trayTitle.textContent = "Dish Macro Split";
+      } else {
+        dishSwitcher.classList.remove('hidden');
+        includeToggle.classList.remove('hidden');
+        trayTitle.textContent = "Total Plate Summary";
+      }
+
+      focusedDishIndex = data.dishes.length > 0 ? data.dishes[0].index : 1;
+      updateFocusedDish();
+      recalcTotals();
+      renderThumbnails();
+    }
+
+    // Render SVG Bounding Boxes & Glowing Vision Pins over image
+    function renderOverlays() {
+      if (!currentAnalysis || !currentAnalysis.dishes) return;
+      const overlay = document.getElementById('overlayLayer');
+      overlay.innerHTML = '';
+
+      const showBoxes = document.getElementById('toggleBoxes').checked;
+      const showShading = document.getElementById('toggleShading').checked;
+      const showLabels = document.getElementById('toggleLabels').checked;
+
+      const dishes = currentAnalysis.dishes;
+      dishes.forEach(dish => {
+        const [x1p, y1p, x2p, y2p] = dish.box_pct;
+        const color = getColor(dish.index);
+        const isFocused = dish.index === focusedDishIndex;
+
+        // Bounding Rectangle
+        if (showBoxes) {
+          const boxDiv = document.createElement('div');
+          boxDiv.className = `vision-box ${isFocused ? 'active' : ''} ${!showShading ? 'hide-shading' : ''}`;
+          boxDiv.style.left = `${x1p * 100}%`;
+          boxDiv.style.top = `${y1p * 100}%`;
+          boxDiv.style.width = `${(x2p - x1p) * 100}%`;
+          boxDiv.style.height = `${(y2p - y1p) * 100}%`;
+          boxDiv.style.borderColor = color;
+          boxDiv.style.background = showShading ? `${color}25` : 'transparent';
+          boxDiv.onclick = () => selectDish(dish.index);
+          overlay.appendChild(boxDiv);
+        }
+        
+        // Floating Vision Pin Badge
+        if (showLabels) {
+          const pinDiv = document.createElement('div');
+          pinDiv.className = 'vision-pin';
+          pinDiv.style.left = `${(x1p + (x2p - x1p) / 2) * 100}%`;
+          pinDiv.style.top = `${y1p * 100}%`;
+          pinDiv.innerHTML = `
+            <div class="px-2.5 py-1 rounded-full text-[11px] font-extrabold text-white flex items-center gap-1.5 shadow-2xl border border-white/20 whitespace-nowrap" style="background: ${color};">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              #${dish.index} ${dish.name} (${Math.round(dish.confidence * 100)}%)
+            </div>
+          `;
+          pinDiv.onclick = (e) => {
+            e.stopPropagation();
+            selectDish(dish.index);
+          };
+          overlay.appendChild(pinDiv);
+        }
+      });
+    }
+
+    function handleCanvasToggle() {
+      renderOverlays();
+    }
+
+    function selectDish(idx) {
+      focusedDishIndex = idx;
+      updateFocusedDish();
+      renderOverlays();
+      renderThumbnails();
+    }
+
+    function updateFocusedDish() {
+      if (!currentAnalysis) return;
+      const dish = currentAnalysis.dishes.find(d => d.index === focusedDishIndex);
+      if (!dish) return;
+
+      document.getElementById('focusDishNum').textContent = `#${dish.index}`;
+      document.getElementById('focusDishNum').style.backgroundColor = `${getColor(dish.index)}33`;
+      document.getElementById('focusDishNum').style.color = getColor(dish.index);
+
+      document.getElementById('focusDishMatch').textContent = `${Math.round(dish.confidence * 100)}% Match`;
+      document.getElementById('focusDishStatus').textContent = dish.weight.status.toUpperCase();
+      document.getElementById('focusDishName').textContent = dish.name;
+      document.getElementById('focusDishInclude').checked = dish.included !== false;
+
+      // Weight slider
+      const slider = document.getElementById('focusWeightSlider');
+      slider.value = dish.weight.grams;
+      document.getElementById('focusWeightDisplay').textContent = `${dish.weight.grams.toFixed(1)} g`;
+
+      // Nutrients
+      document.getElementById('focusCal').textContent = Math.round(dish.nutrients.calories);
+      document.getElementById('focusProtein').textContent = dish.nutrients.protein.toFixed(1);
+      document.getElementById('focusCarbs').textContent = dish.nutrients.carbohydrates.toFixed(1);
+      document.getElementById('focusFats').textContent = dish.nutrients.fats.toFixed(1);
+
+      // Top-K List
+      const topKList = document.getElementById('topKList');
+      topKList.innerHTML = '';
+      if (dish.top_k && dish.top_k.length > 0) {
+        dish.top_k.forEach(item => {
+          const row = document.createElement('div');
+          row.className = "flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-900/40 border border-white/5";
+          const pct = Math.round(item.prob * 100);
+          row.innerHTML = `
+            <span class="font-medium text-slate-300 truncate">${item.name}</span>
+            <div class="flex items-center gap-2">
+              <div class="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                <div class="h-full bg-cyan-400" style="width: ${pct}%"></div>
+              </div>
+              <span class="font-mono text-cyan-400 font-bold text-[11px]">${pct}%</span>
+            </div>
+          `;
+          topKList.appendChild(row);
+        });
+        document.getElementById('topKContainer').classList.remove('hidden');
+      } else {
+        document.getElementById('topKContainer').classList.add('hidden');
+      }
+    }
+
+    function handleWeightSlider(val) {
+      if (!currentAnalysis) return;
+      const dish = currentAnalysis.dishes.find(d => d.index === focusedDishIndex);
+      if (!dish) return;
+
+      const grams = parseFloat(val);
+      dish.weight.grams = grams;
+      document.getElementById('focusWeightDisplay').textContent = `${grams.toFixed(1)} g`;
+
+      // Scale nutrients proportionally from per_100g
+      const p100 = dish.per_100g;
+      dish.nutrients.calories = (p100.calories * grams) / 100.0;
+      dish.nutrients.protein = (p100.protein * grams) / 100.0;
+      dish.nutrients.carbohydrates = (p100.carbohydrates * grams) / 100.0;
+      dish.nutrients.fats = (p100.fats * grams) / 100.0;
+
+      document.getElementById('focusCal').textContent = Math.round(dish.nutrients.calories);
+      document.getElementById('focusProtein').textContent = dish.nutrients.protein.toFixed(1);
+      document.getElementById('focusCarbs').textContent = dish.nutrients.carbohydrates.toFixed(1);
+      document.getElementById('focusFats').textContent = dish.nutrients.fats.toFixed(1);
+
+      recalcTotals();
+    }
+
+    function setMultiplier(mult) {
+      if (!currentAnalysis) return;
+      const dish = currentAnalysis.dishes.find(d => d.index === focusedDishIndex);
+      if (!dish) return;
+      const baseWeight = 150.0;
+      const newWeight = Math.round(baseWeight * mult);
+      handleWeightSlider(newWeight);
+      document.getElementById('focusWeightSlider').value = newWeight;
+    }
+
+    function toggleDishInclude() {
+      if (!currentAnalysis) return;
+      const dish = currentAnalysis.dishes.find(d => d.index === focusedDishIndex);
+      if (!dish) return;
+      dish.included = document.getElementById('focusDishInclude').checked;
+      recalcTotals();
+    }
+
+    function recalcTotals() {
+      if (!currentAnalysis || !currentAnalysis.dishes) return;
+      const included = currentAnalysis.dishes.filter(d => d.included !== false);
+
+      let tGrams = 0, tCal = 0, tP = 0, tC = 0, tF = 0;
+      included.forEach(d => {
+        tGrams += d.weight.grams;
+        tCal += d.nutrients.calories;
+        tP += d.nutrients.protein;
+        tC += d.nutrients.carbohydrates;
+        tF += d.nutrients.fats;
+      });
+
+      document.getElementById('trayTotalGrams').textContent = `${tGrams.toFixed(1)} g Total`;
+      document.getElementById('trayCalories').textContent = Math.round(tCal);
+      document.getElementById('trayProtein').textContent = `${tP.toFixed(1)}g`;
+      document.getElementById('trayCarbs').textContent = `${tC.toFixed(1)}g`;
+      document.getElementById('trayFats').textContent = `${tF.toFixed(1)}g`;
+
+      // Donut arcs calculation
+      const pCal = tP * 4.0;
+      const cCal = tC * 4.0;
+      const fCal = tF * 9.0;
+      const sumCal = Math.max(pCal + cCal + fCal, 1.0);
+
+      const r = 40;
+      const c = 2 * Math.PI * r; // ~251.3
+      const pLen = (pCal / sumCal) * c;
+      const cLen = (cCal / sumCal) * c;
+      const fLen = (fCal / sumCal) * c;
+
+      const dP = document.getElementById('donutProtein');
+      const dC = document.getElementById('donutCarbs');
+      const dF = document.getElementById('donutFats');
+
+      dP.setAttribute('stroke-dasharray', `${pLen} ${c}`);
+      dP.setAttribute('stroke-dashoffset', '0');
+
+      dC.setAttribute('stroke-dasharray', `${cLen} ${c}`);
+      dC.setAttribute('stroke-dashoffset', `-${pLen}`);
+
+      dF.setAttribute('stroke-dasharray', `${fLen} ${c}`);
+      dF.setAttribute('stroke-dashoffset', `-${pLen + cLen}`);
+
+      // Split bar widths
+      document.getElementById('barProtein').style.width = `${(pCal / sumCal) * 100}%`;
+      document.getElementById('barCarbs').style.width = `${(cCal / sumCal) * 100}%`;
+      document.getElementById('barFats').style.width = `${(fCal / sumCal) * 100}%`;
+    }
+
+    function renderThumbnails() {
+      if (!currentAnalysis) return;
+      const list = document.getElementById('dishThumbnailList');
+      list.innerHTML = '';
+      currentAnalysis.dishes.forEach(d => {
+        const btn = document.createElement('button');
+        const isSel = d.index === focusedDishIndex;
+        const color = getColor(d.index);
+        btn.className = `px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+          isSel ? 'border shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-white/5'
+        }`;
+        if (isSel) {
+          btn.style.backgroundColor = `${color}25`;
+          btn.style.color = color;
+          btn.style.borderColor = color;
+        }
+        btn.innerHTML = `<span>#${d.index}</span> ${d.name}`;
+        btn.onclick = () => selectDish(d.index);
+        list.appendChild(btn);
+      });
+    }
+
+    function resetToCapture() {
+      document.getElementById('resultsStage').classList.add('hidden');
+      document.getElementById('scanningStage').classList.add('hidden');
+      document.getElementById('captureStage').classList.remove('hidden');
+      document.getElementById('btnNewScan').classList.add('hidden');
+      document.getElementById('dropzoneView').classList.remove('hidden');
+      document.getElementById('webcamContainer').classList.add('hidden');
+      currentAnalysis = null;
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeIcon').textContent = isLight ? '🌙' : '☀️';
+      document.getElementById('themeText').textContent = isLight ? 'Dark Mode' : 'Light Mode';
+    }
+
+    window.addEventListener('resize', () => {
+      if (currentAnalysis) renderOverlays();
+    });
+  </script>
+</body>
+</html>

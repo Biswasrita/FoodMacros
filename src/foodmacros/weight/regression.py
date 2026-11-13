@@ -213,13 +213,16 @@ def predict_mass(
     stats: Dict[str, Tuple[float, float]],
 ) -> MassPrediction:
     """Predict total mass + macros from an RGB uint8 array."""
-    import tensorflow as tf
-
     array = np.asarray(image_rgb)
     if array.ndim != 3 or array.shape[-1] != 3:
         return MassPrediction(False, reason="image must be an HxWx3 RGB array.")
     if array.shape[0] != img_size or array.shape[1] != img_size:
-        array = tf.image.resize(array, (img_size, img_size)).numpy()
+        try:
+            import tensorflow as tf
+            array = tf.image.resize(array, (img_size, img_size)).numpy()
+        except ImportError:
+            from PIL import Image
+            array = np.array(Image.fromarray(array.astype(np.uint8)).resize((img_size, img_size), Image.BILINEAR))
     x = preprocess_fn(array.astype(np.float32)) if preprocess_fn is not None else array.astype(np.float32)
     vector = np.asarray(model.predict(x[None, ...], verbose=0))[0]
     nutrients = denormalize_targets(vector, stats)

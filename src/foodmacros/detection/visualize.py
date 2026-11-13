@@ -14,18 +14,18 @@ import numpy as np
 
 from .crop import load_full_image
 
-# A small, high-contrast palette (repeats if there are more dishes than colours).
+# A modern high-contrast vibrant palette matching the Vision-AI UI.
 _COLORS = [
-    (230, 25, 75),
-    (60, 180, 75),
-    (0, 130, 200),
-    (245, 130, 48),
-    (145, 30, 180),
-    (70, 240, 240),
-    (240, 50, 230),
-    (210, 245, 60),
-    (250, 190, 190),
-    (0, 128, 128),
+    (16, 185, 129),   # Emerald
+    (6, 182, 212),    # Cyan
+    (245, 158, 11),   # Amber
+    (139, 92, 246),   # Purple
+    (244, 63, 94),    # Rose
+    (59, 130, 246),   # Blue
+    (234, 179, 8),    # Yellow
+    (168, 85, 247),   # Violet
+    (20, 184, 166),   # Teal
+    (239, 68, 68),    # Red
 ]
 
 
@@ -63,13 +63,18 @@ def draw_detections(image, detections: Sequence, labels: Sequence[str] | None = 
     ``Detection``) or raw ``(x1, y1, x2, y2)`` tuples. ``labels`` optionally
     overrides the default ``"Dish N"`` captions.
     """
-    from PIL import ImageDraw
+    from PIL import Image, ImageDraw
 
     base = _to_pil(image)
     width, height = base.size
+    
+    # Create semi-transparent overlay for food area illumination
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw_ov = ImageDraw.Draw(overlay)
     draw = ImageDraw.Draw(base)
-    line_w = max(2, int(round(min(width, height) * 0.006)))
-    font = _load_font(max(14, int(round(min(width, height) * 0.035))))
+
+    line_w = max(3, int(round(min(width, height) * 0.009)))
+    font = _load_font(max(15, int(round(min(width, height) * 0.038))))
 
     for i, det in enumerate(detections, start=1):
         box = getattr(det, "box_xyxy", det)
@@ -89,6 +94,12 @@ def draw_detections(image, detections: Sequence, labels: Sequence[str] | None = 
             continue
 
         color = _COLORS[(i - 1) % len(_COLORS)]
+        fill_color = color + (35,)  # Subtle 14% translucent tint
+
+        # Draw tinted fill in overlay
+        draw_ov.rectangle([x1, y1, x2, y2], fill=fill_color)
+        
+        # Draw solid prominent bounding border directly on base
         draw.rectangle([x1, y1, x2, y2], outline=color, width=line_w)
 
         caption = labels[i - 1] if labels and i - 1 < len(labels) else f"Dish {i}"
@@ -97,12 +108,15 @@ def draw_detections(image, detections: Sequence, labels: Sequence[str] | None = 
             tw, th = tb[2] - tb[0], tb[3] - tb[1]
         except Exception:
             tw, th = (7 * len(caption), 12)
-        ty = y1 - th - 4
+        ty = y1 - th - 6
         if ty < 0:
-            ty = y1 + 2
-        draw.rectangle([x1, ty, x1 + tw + 6, ty + th + 4], fill=color)
-        draw.text((x1 + 3, ty + 2), caption, fill=(255, 255, 255), font=font)
+            ty = y1 + 4
+        # Draw badge background
+        draw.rectangle([x1, ty, x1 + tw + 10, ty + th + 6], fill=color)
+        draw.text((x1 + 5, ty + 2), caption, fill=(255, 255, 255), font=font)
 
+    # Composite translucent highlight over base image
+    base = Image.alpha_composite(base.convert("RGBA"), overlay).convert("RGB")
     return base
 
 

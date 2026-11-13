@@ -58,9 +58,12 @@ def _to_model_input(array, img_size: int) -> np.ndarray:
     if arr.ndim != 3 or arr.shape[-1] != 3:
         raise ValueError(f"Expected an HxWx3 RGB array, got shape {arr.shape}.")
     if arr.shape[0] != img_size or arr.shape[1] != img_size:
-        import tensorflow as tf
-
-        arr = tf.image.resize(arr, (img_size, img_size)).numpy()
+        try:
+            import tensorflow as tf
+            arr = tf.image.resize(arr, (img_size, img_size)).numpy()
+        except ImportError:
+            from PIL import Image
+            arr = np.array(Image.fromarray(arr.astype(np.uint8)).resize((img_size, img_size), Image.BILINEAR))
     return arr.astype(np.float32)
 
 

@@ -30,7 +30,10 @@ class BuiltModel:
 
 def get_preprocess_input(architecture: str = "efficientnetb0"):
     """Return the Keras ``preprocess_input`` for an ImageNet backbone."""
-    import tensorflow as tf
+    try:
+        import tensorflow as tf
+    except ImportError:
+        return lambda x: x
 
     name = architecture.lower()
     if name.startswith("efficientnet"):
