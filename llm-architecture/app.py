@@ -14,7 +14,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from models.detector import FoodDetector
 from models.llm_classifier import LLMFoodClassifier
-from utils.nutrition_lookup import get_nutrition
 
 st.set_page_config(layout="wide", page_title="AI Food Macro Tracker")
 
