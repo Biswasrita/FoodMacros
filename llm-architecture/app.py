@@ -13,7 +13,7 @@ load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from models.detector import FoodDetector
-from models.llm_classifier import LLMFoodClassifier
+from models.llm_classifier_overcooked import LLMFoodClassifier
 
 st.set_page_config(layout="wide", page_title="AI Food Macro Tracker")
 
@@ -120,6 +120,8 @@ if uploaded_file is not None:
         try:
           # 2. LLM Vision Classification & Direct Macro Estimation
           item = classifier.predict(crop)
+          weight = item["estimated_weight_g"]
+          weight_conf = item["weight_confidence"]
         except Exception as error:
           st.error(f"Food classification failed: {error}")
           st.stop()
@@ -138,13 +140,56 @@ if uploaded_file is not None:
         total_carb += carb
 
         with st.expander(
-            f"Item {i+1}: {label.title()} ({conf*100:.1f}% conf) — {cal:.0f}"
-            " kcal"
+                f"Item {i + 1}: {label.title()} ({conf * 100:.1f}% conf) — {cal:.0f} kcal"
         ):
-          st.write(
-              f"**Protein:** {pro:.1f}g | **Fat:** {fat:.1f}g | **Carbs:**"
-              f" {carb:.1f}g | **Fiber:** {fiber:.1f}g"
-          )
+            st.write(f"**Estimated Weight:** {weight:.1f} g")
+
+            st.write(
+                f"**Weight Confidence:** {weight_conf * 100:.1f}%"
+            )
+
+            st.divider()
+
+            st.write(
+                f"**Protein:** {pro:.1f}g | **Fat:** {fat:.1f}g | "
+                f"**Carbs:** {carb:.1f}g | **Fiber:** {fiber:.1f}g"
+            )
+
+            # Keep your existing food-condition assessment below this
+            condition = item["visual_condition"]
+
+            st.subheader("Food Condition Assessment")
+
+            if condition == "overcooked_or_burnt":
+              st.warning("⚠️ Food appears overcooked or burnt.")
+
+            elif condition == "possible_spoilage_signs":
+              st.error("⚠️ Possible visible food spoilage signs detected.")
+
+            elif condition == "normal_appearance":
+              st.success("No obvious visible signs of burning or spoilage.")
+
+            else:
+              st.info("Food condition is uncertain.")
+
+            st.write(
+                f"**Severity:** {item['condition_severity'].title()}"
+            )
+
+            st.write(
+                f"**Condition confidence:** "
+                f"{item['condition_confidence'] * 100:.1f}%"
+            )
+
+            st.write(
+                f"**Visual evidence:** {item['condition_evidence']}"
+            )
+
+            st.caption(
+                "Expiry and microbiological safety cannot be confirmed from an image."
+            )
+
+            st.divider()
 
       st.write("---")
       st.metric("Total Calories", f"{total_cal:.1f} kcal")
