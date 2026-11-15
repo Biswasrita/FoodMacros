@@ -8,10 +8,19 @@ class FoodDetector:
     def __init__(self, weights_path='weights/gfsd_yolo_weights.pt'):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
-        # 1. Check if custom local weights exist
-        if os.path.exists(weights_path):
-            print(f"Loading custom GFSD weights from {weights_path}...")
-            self.model = YOLO(weights_path)
+        possible_paths = [
+            weights_path,
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), weights_path),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'weights', 'gfsd_yolo_weights.pt'),
+            os.path.join(os.getcwd(), 'weights', 'gfsd_yolo_weights.pt'),
+            os.path.join(os.getcwd(), 'llm-architecture', 'weights', 'gfsd_yolo_weights.pt'),
+            os.path.join(os.getcwd(), 'models', 'food_detector', 'food_detector.pt'),
+        ]
+        resolved_path = next((p for p in possible_paths if p and os.path.exists(p)), None)
+
+        if resolved_path:
+            print(f"Loading custom GFSD weights from {resolved_path}...")
+            self.model = YOLO(resolved_path)
         else:
             # 2. Attempt to download ISSAI GFSD YOLOv8 XL weights directly
             issai_url = "https://issai.nu.edu.kz/wp-content/themes/issai-new/data/models/GFSD/yolov8x.pt"
