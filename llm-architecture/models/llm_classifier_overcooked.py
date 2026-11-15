@@ -94,7 +94,7 @@ class LLMFoodClassifier:
 
         Nutritional estimates must refer to the same visible portion
         used for estimated_weight_g.
-
+        
         STEP 3: FOOD CONDITION ASSESSMENT
 
         Carefully examine the visible condition of the food.

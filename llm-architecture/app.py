@@ -98,12 +98,26 @@ if uploaded_file is not None:
     # Adjusted to 2 columns since Depth Map is removed
     col1, col2 = st.columns(2)
     
-    # Overlay bounding boxes
+    
+    # Overlay bounding boxes and labels
     img_boxes = img_np.copy()
-    for b in boxes:
+    for i, b in enumerate(boxes):
         x1, y1, x2, y2 = b['box']
+        # Draw rectangle
         cv2.rectangle(img_boxes, (x1, y1), (x2, y2), (0, 255, 0), 3)
         
+        # Put item label text (e.g., "Item 1") near the top-left corner of the box
+        label_text = f"Item {i + 1}"
+        cv2.putText(
+            img_boxes, 
+            label_text, 
+            (x1, max(30, y1 - 10)), 
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            2, 
+            (0, 255, 0), 
+            2, 
+            cv2.LINE_AA
+        ) 
     with col1:
         st.image(img_boxes, caption="YOLOv8 Detection", use_container_width=True)
         
@@ -120,6 +134,7 @@ if uploaded_file is not None:
         try:
           # 2. LLM Vision Classification & Direct Macro Estimation
           item = classifier.predict(crop)
+          condition = item["visual_condition"]
           weight = item["estimated_weight_g"]
           weight_conf = item["weight_confidence"]
         except Exception as error:
@@ -155,46 +170,47 @@ if uploaded_file is not None:
                 f"**Carbs:** {carb:.1f}g | **Fiber:** {fiber:.1f}g"
             )
 
-            # Keep your existing food-condition assessment below this
-            condition = item["visual_condition"]
-
-            st.subheader("Food Condition Assessment")
-
-            if condition == "overcooked_or_burnt":
-              st.warning("⚠️ Food appears overcooked or burnt.")
-
-            elif condition == "possible_spoilage_signs":
-              st.error("⚠️ Possible visible food spoilage signs detected.")
-
-            elif condition == "normal_appearance":
-              st.success("No obvious visible signs of burning or spoilage.")
-
-            else:
-              st.info("Food condition is uncertain.")
-
-            st.write(
-                f"**Severity:** {item['condition_severity'].title()}"
+            
+        condition = item["visual_condition"]
+        if condition == "overcooked_or_burnt":
+            st.warning("⚠️ Food appears overcooked or burnt.")
+            
+        elif condition == "possible_spoilage_signs":
+            st.error("⚠️ Possible visible food spoilage signs detected.")
+            
+        elif condition == "normal_appearance":
+            st.success("No obvious visible signs of burning or spoilage.")
+            
+        else:
+            st.info("Food condition is uncertain.")# Keep your existing food-condition assessment below this
+                        
+            
+        st.subheader("Food Condition Assessment")
+        st.write(
+            f"**Severity:** {item['condition_severity'].title()}"
+        )
+            
+        st.write(
+            f"**Condition confidence:** "
+            f"{item['condition_confidence'] * 100:.1f}%"
             )
-
-            st.write(
-                f"**Condition confidence:** "
-                f"{item['condition_confidence'] * 100:.1f}%"
+            
+        st.write(
+            f"**Visual evidence:** {item['condition_evidence']}"
             )
-
-            st.write(
-                f"**Visual evidence:** {item['condition_evidence']}"
+            
+        st.caption(
+            "Expiry and microbiological safety cannot be confirmed from an image."
             )
+                        
+            
 
-            st.caption(
-                "Expiry and microbiological safety cannot be confirmed from an image."
-            )
+    st.divider()
 
-            st.divider()
+    st.write("---")
+    st.metric("Total Calories", f"{total_cal:.1f} kcal")
 
-      st.write("---")
-      st.metric("Total Calories", f"{total_cal:.1f} kcal")
-
-      st.write("**Total Macronutrients**")
-      st.progress(min(1.0, total_pro / 150.0), text=f"Protein: {total_pro:.1f}g")
-      st.progress(min(1.0, total_fat / 100.0), text=f"Fat: {total_fat:.1f}g")
-      st.progress(min(1.0, total_carb / 300.0), text=f"Carbs: {total_carb:.1f}g")
+    st.write("**Total Macronutrients**")
+    st.progress(min(1.0, total_pro / 150.0), text=f"Protein: {total_pro:.1f}g")
+    st.progress(min(1.0, total_fat / 100.0), text=f"Fat: {total_fat:.1f}g")
+    st.progress(min(1.0, total_carb / 300.0), text=f"Carbs: {total_carb:.1f}g")
