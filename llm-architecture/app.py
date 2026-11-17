@@ -706,254 +706,196 @@ CUSTOM_CSS = """
     }
 
     /* ========================================================
-       HIGH-TECH DIET ENGINE RADAR LOADER STYLES (MINIMAL & SLEEK)
+       PULSING EMOJI SPINNER LOADER STYLES
        ======================================================== */
     .loader-modal-backdrop {
         display: flex;
         justify-content: center;
         align-items: center;
         width: 100%;
-        margin: 0 0 1rem 0;
+        margin: 0 0 1.5rem 0;
     }
 
     .loader-card {
-        background: radial-gradient(circle at 50% 25%, rgba(0, 242, 254, 0.08) 0%, transparent 65%),
-                    rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(16px);
-        border: 1.5px solid rgba(0, 242, 254, 0.45);
-        border-radius: 20px;
-        padding: 1.4rem 1.6rem;
-        box-shadow: 0 15px 35px -10px rgba(2, 132, 199, 0.15),
-                    0 0 25px rgba(0, 242, 254, 0.1) inset;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 3.5rem 2rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
+                    0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         text-align: center;
         width: 100%;
+        min-height: 340px;
+        box-sizing: border-box;
+    }
+
+    .emoji-spinner-stage {
         position: relative;
-        overflow: hidden;
-    }
-
-    /* Radar Scanner Stage */
-    .radar-stage {
-        position: relative;
-        width: 76px;
-        height: 76px;
-        margin: 0.2rem auto 0.8rem auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .radar-outer-ring {
-        position: absolute;
-        width: 76px;
-        height: 76px;
-        border-radius: 50%;
-        border: 1.5px dashed rgba(0, 242, 254, 0.45);
-        animation: rotateOuter 10s linear infinite;
-    }
-
-    .radar-beam {
-        position: absolute;
         width: 72px;
         height: 72px;
-        border-radius: 50%;
-        background: conic-gradient(from 0deg, transparent 0%, rgba(0, 242, 254, 0.05) 60%, rgba(0, 242, 254, 0.35) 95%, #00f2fe 100%);
-        animation: rotateRadar 2s linear infinite;
-        filter: drop-shadow(0 0 6px #00f2fe);
-    }
-
-    .radar-inner-glow {
-        position: absolute;
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        background: rgba(2, 132, 199, 0.08);
-        box-shadow: 0 0 16px rgba(0, 242, 254, 0.25);
-    }
-
-    /* Central Food Icon Cycler */
-    .food-cycler-container {
-        position: relative;
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: #ffffff;
-        border: 1.5px solid #00f2fe;
-        box-shadow: 0 0 12px rgba(0, 242, 254, 0.45);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 3;
-        overflow: hidden;
+        margin: 0 auto 1.25rem auto;
     }
 
-    .food-icon-item {
+    .emoji-spinner-stage .pulsing-emoji {
         position: absolute;
-        font-size: 1.7rem;
+        font-size: 2.8rem;
         line-height: 1;
+        user-select: none;
         opacity: 0;
-        transform: scale(0.6) rotate(-15deg);
-        animation: foodCycleAnim 9s infinite ease-in-out;
+        transform: scale(0.65);
+        animation: emojiCycle 5.4s infinite ease-in-out;
+        animation-fill-mode: both;
     }
 
-    /* 6 cycling food items */
-    .fi-1 { animation-delay: 0s; }
-    .fi-2 { animation-delay: 1.5s; }
-    .fi-3 { animation-delay: 3.0s; }
-    .fi-4 { animation-delay: 4.5s; }
-    .fi-5 { animation-delay: 6.0s; }
-    .fi-6 { animation-delay: 7.5s; }
+    .emoji-spinner-stage .pe-1 { animation-delay: 0.0s; }
+    .emoji-spinner-stage .pe-2 { animation-delay: 0.9s; }
+    .emoji-spinner-stage .pe-3 { animation-delay: 1.8s; }
+    .emoji-spinner-stage .pe-4 { animation-delay: 2.7s; }
+    .emoji-spinner-stage .pe-5 { animation-delay: 3.6s; }
+    .emoji-spinner-stage .pe-6 { animation-delay: 4.5s; }
 
-    @keyframes foodCycleAnim {
-        0% { opacity: 0; transform: scale(0.5) rotate(-20deg); }
-        3% { opacity: 1; transform: scale(1.08) rotate(0deg); }
-        13.6% { opacity: 1; transform: scale(1.0) rotate(0deg); }
-        16.6% { opacity: 0; transform: scale(0.5) rotate(20deg); }
-        100% { opacity: 0; }
+    @keyframes emojiCycle {
+        0% {
+            opacity: 0;
+            transform: scale(0.65);
+        }
+        3% {
+            opacity: 1;
+            transform: scale(1.0);
+        }
+        8.33% {
+            opacity: 1;
+            transform: scale(1.22);
+        }
+        13.67% {
+            opacity: 1;
+            transform: scale(1.0);
+        }
+        16.67%, 100% {
+            opacity: 0;
+            transform: scale(0.65);
+        }
     }
 
-    @keyframes rotateRadar {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    .loader-heading {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 0.45rem 0;
+        letter-spacing: -0.01em;
     }
 
-    @keyframes rotateOuter {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    .loader-subtitle {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 0.92rem;
+        font-weight: 500;
+        color: #64748b;
+        margin: 0;
+        line-height: 1.5;
     }
 
-    /* Text Rotator */
-    .loader-badge-tag {
+    /* ========================================================
+       RIGHT-HAND STANDBY OVERVIEW CARD STYLES
+       ======================================================== */
+    .overview-card-container {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.8rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
+                    0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        margin-bottom: 1.5rem;
+        box-sizing: border-box;
+    }
+
+    .overview-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 1.5px;
-        color: #0284c7;
+        gap: 0.35rem;
         background: rgba(2, 132, 199, 0.08);
-        border: 1px solid rgba(2, 132, 199, 0.25);
+        color: #0284c7;
+        border: 1px solid rgba(2, 132, 199, 0.2);
         padding: 0.25rem 0.75rem;
         border-radius: 999px;
-        margin-bottom: 0.5rem;
-        text-transform: uppercase;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.65rem;
     }
 
-    .pulse-dot-loader {
-        width: 6px;
-        height: 6px;
-        background: #00f2fe;
-        border-radius: 50%;
-        box-shadow: 0 0 6px #00f2fe;
-        animation: pulseDot 1.4s infinite;
-    }
-
-    .loader-main-title {
-        font-size: 1.22rem;
-        font-weight: 900;
+    .overview-title {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 1.35rem;
+        font-weight: 800;
         color: #0f172a;
-        margin: 0 0 0.25rem 0;
-        letter-spacing: -0.2px;
+        margin: 0 0 0.45rem 0;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
     }
 
-    .loader-status-container {
-        position: relative;
-        min-height: 24px;
-        margin: 0.2rem auto 0.5rem auto;
+    .overview-summary {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 0.92rem;
+        color: #475569;
+        line-height: 1.55;
+        margin: 0 0 1.25rem 0;
     }
 
-    .loader-status-text {
+    .highlights-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .highlight-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .highlight-item:hover {
+        border-color: rgba(2, 132, 199, 0.3);
+        background: #f0f9ff;
+    }
+
+    .highlight-icon-box {
+        font-size: 1.25rem;
+        line-height: 1;
+        margin-top: 0.1rem;
+        flex-shrink: 0;
+    }
+
+    .highlight-content {
+        flex: 1;
+    }
+
+    .highlight-heading {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 0.92rem;
         font-weight: 700;
-        color: #0284c7;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        line-height: 1.35;
+        color: #0f172a;
+        margin-bottom: 0.2rem;
     }
 
-    /* Continuously Cycling High-Tech Phrases */
-    .rotator-wrapper {
-        position: relative;
-        height: 22px;
-        margin-top: 0.4rem;
-    }
-
-    .rotator-text-item {
-        position: absolute;
-        width: 100%;
-        left: 0;
-        top: 0;
-        font-size: 0.82rem;
-        font-weight: 600;
+    .highlight-desc {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 0.85rem;
         color: #64748b;
-        opacity: 0;
-        transform: translateY(6px);
-        animation: textCycleAnim 10s infinite ease-in-out;
-    }
-
-    .ri-1 { animation-delay: 0s; }
-    .ri-2 { animation-delay: 2s; }
-    .ri-3 { animation-delay: 4s; }
-    .ri-4 { animation-delay: 6s; }
-    .ri-5 { animation-delay: 8s; }
-
-    @keyframes textCycleAnim {
-        0% { opacity: 0; transform: translateY(6px); }
-        4% { opacity: 1; transform: translateY(0); }
-        16% { opacity: 1; transform: translateY(0); }
-        20% { opacity: 0; transform: translateY(-6px); }
-        100% { opacity: 0; }
-    }
-
-    /* Glowing Neon Progress Bar */
-    .loader-progress-track {
-        width: 100%;
-        max-width: 320px;
-        height: 6px;
-        background: #e2e8f0;
-        border-radius: 999px;
-        margin: 0.7rem auto 0.7rem auto;
-        overflow: hidden;
-        position: relative;
-        border: 1px solid rgba(0, 242, 254, 0.35);
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .loader-progress-bar {
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #0284c7 0%, #00f2fe 35%, #10b981 70%, #0284c7 100%);
-        background-size: 200% 100%;
-        animation: sweepProgress 2s linear infinite;
-        box-shadow: 0 0 8px rgba(0, 242, 254, 0.7);
-    }
-
-    @keyframes sweepProgress {
-        0% { background-position: 100% 0; }
-        100% { background-position: -100% 0; }
-    }
-
-    /* Bottom Micro Telemetry Badges */
-    .loader-telemetry-row {
-        display: flex;
-        justify-content: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        font-weight: 700;
-        color: #475569;
-        margin-top: 0.6rem;
-    }
-
-    .loader-telem-chip {
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        padding: 0.25rem 0.65rem;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
+        line-height: 1.45;
+        margin: 0;
     }
 </style>
 """
@@ -1065,165 +1007,52 @@ def draw_high_tech_overlay(image_pil, boxes, item_labels=None):
 
 
 def get_standby_static_card_html() -> str:
-    """Generates a clean, static showcase card for main_col2 before a meal photo is uploaded."""
-    img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "diet_engine_poster.jpg")
-    if not os.path.exists(img_path):
-        img_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "diet_engine_poster.jpg")
-
-    b64_str = ""
-    if os.path.exists(img_path):
-        with open(img_path, "rb") as f:
-            b64_str = base64.b64encode(f.read()).decode("utf-8")
-
-    return f"""
-    <div class="glass-card" style="padding: 1.3rem; border-radius: 22px; border: 1.5px solid rgba(2, 132, 199, 0.22); background: rgba(255, 255, 255, 0.95); box-shadow: 0 15px 35px -10px rgba(2, 132, 199, 0.12);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 800; color: #0284c7; letter-spacing: 1.2px;">
-                ⚡ DIET ENGINE VISION HUD
-            </div>
-            <div style="font-size: 0.74rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); padding: 0.2rem 0.65rem; border-radius: 999px;">
-                READY TO SCAN
-            </div>
-        </div>
-        <div style="border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05); margin-bottom: 0.8rem;">
-            <img src="data:image/jpeg;base64,{b64_str}" style="width: 100%; display: block; object-fit: cover;" alt="Diet Engine AI Nutrition Analysis" />
-        </div>
-        <div style="text-align: center; color: #64748b; font-size: 0.86rem; font-weight: 600; line-height: 1.45;">
-            Upload or capture any meal photo on the left. The engine isolates portions and streams your complete nutritional profile here.
-        </div>
-    </div>
-    """
+    """Generates a clean, text-based overview card explaining app motive, tech & benefits."""
+    return """<div class="overview-card-container">
+<div class="overview-badge">✨ Intelligent Nutrition Engine</div>
+<h3 class="overview-title">Your Pocket Meal Guide</h3>
+<p class="overview-summary">Take the guesswork out of daily nutrition. Upload a picture of your plate and immediately understand how your meal supports your wellness.</p>
+<div class="highlights-list">
+<div class="highlight-item">
+<div class="highlight-icon-box">🎯</div>
+<div class="highlight-content">
+<div class="highlight-heading">Zero Guesswork:</div>
+<p class="highlight-desc"> No more searching long food lists or estimating serving sizes.</p>
+</div>
+</div>
+<div class="highlight-item">
+<div class="highlight-icon-box">🥗</div>
+<div class="highlight-content">
+<div class="highlight-heading">Complete Breakdown: </div>
+<p class="highlight-desc">See your meal's full nutrition profile—from calories to protein and fiber—at a glance.</p>
+</div>
+</div>
+<div class="highlight-item">
+<div class="highlight-icon-box">⚡</div>
+<div class="highlight-content">
+<div class="highlight-heading">Stay Consistent: </div>
+<p class="highlight-desc">Fast, stress-free tracking that actually fits into a busy day.</p>
+</div>
+</div>
+</div>
+</div>"""
 
 
 def get_loader_html(status_text: str = None, current_portion: int = None, total_portions: int = None, is_standby: bool = False) -> str:
-    """Generates the compact, high-tech animated loader for main_col2.
-    Shows standby state when awaiting meal upload, or dynamic live pipeline state during YOLO/Gemini scan."""
-    if is_standby:
-        return """
+    """Generates a clean white card loading state with a smooth pulsing emoji spinner."""
+    return """
 <div class="loader-modal-backdrop">
     <div class="loader-card">
-        <!-- Radar Scanner Stage with Rotating Beam -->
-        <div class="radar-stage">
-            <div class="radar-outer-ring"></div>
-            <div class="radar-beam"></div>
-            <div class="radar-inner-glow"></div>
-            
-            <!-- Center: Smoothly Cycling 3D Food Icons -->
-            <div class="food-cycler-container">
-                <div class="food-icon-item fi-1">🥗</div>
-                <div class="food-icon-item fi-2">🥑</div>
-                <div class="food-icon-item fi-3">🍗</div>
-                <div class="food-icon-item fi-4">🍣</div>
-                <div class="food-icon-item fi-5">🥪</div>
-                <div class="food-icon-item fi-6">🍳</div>
-            </div>
+        <div class="emoji-spinner-stage">
+            <span class="pulsing-emoji pe-1">🥗</span>
+            <span class="pulsing-emoji pe-2">🥑</span>
+            <span class="pulsing-emoji pe-3">🍲</span>
+            <span class="pulsing-emoji pe-4">🍎</span>
+            <span class="pulsing-emoji pe-5">🔍</span>
+            <span class="pulsing-emoji pe-6">🍳</span>
         </div>
-
-        <!-- Standby Status Badge -->
-        <div class="loader-badge-tag">
-            <span class="pulse-dot-loader"></span>
-            <span>AI ENGINE STANDBY</span>
-        </div>
-
-        <div class="loader-main-title">DIET ENGINE READY</div>
-
-        <!-- Standby Description -->
-        <div class="loader-status-container">
-            <div class="loader-status-text" style="color: #64748b; font-weight: 600; font-size: 0.88rem;">
-                Awaiting meal photo upload on the left...
-            </div>
-        </div>
-
-        <!-- Gentle Pulse Track -->
-        <div class="loader-progress-track">
-            <div class="loader-progress-bar" style="animation-duration: 3.5s; opacity: 0.75;"></div>
-        </div>
-
-        <!-- Continuously Cycling Website Phrases -->
-        <div class="rotator-wrapper">
-            <div class="rotator-text-item ri-1">🥗 Drop any breakfast, lunch, or dinner plate...</div>
-            <div class="rotator-text-item ri-2">🔍 YOLOv8 automatically localizes portions & geometry...</div>
-            <div class="rotator-text-item ri-3">🤖 Gemini Vision computes calories, protein & healthy fats...</div>
-            <div class="rotator-text-item ri-4">📊 Nutrition breakdown & HUD results appear here instantly...</div>
-            <div class="rotator-text-item ri-5">⚡ Real-time caloric density & macro tracking ready...</div>
-        </div>
-
-        <!-- Standby Telemetry Chips -->
-        <div class="loader-telemetry-row">
-            <div class="loader-telem-chip"><span style="color:#0284c7;">●</span> YOLOv8: ARMED</div>
-            <div class="loader-telem-chip"><span style="color:#10b981;">●</span> GEMINI: READY</div>
-            <div class="loader-telem-chip"><span style="color:#00f2fe;">●</span> HUD: STANDBY</div>
-        </div>
-    </div>
-</div>
-"""
-
-    if status_text is None:
-        status_text = "Scanning meal plate with YOLOv8 & Gemini Vision AI..."
-
-    portion_badge = ""
-    if current_portion and total_portions:
-        portion_badge = f"""
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; font-weight: 800; color: #0284c7; background: rgba(2, 132, 199, 0.12); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 999px; padding: 0.2rem 0.7rem; display: inline-block; margin-bottom: 0.4rem;">
-            PORTION {current_portion} OF {total_portions}
-        </div>
-        """
-
-    return f"""
-<div class="loader-modal-backdrop">
-    <div class="loader-card">
-        <!-- Radar Scanner Stage with Rotating Beam -->
-        <div class="radar-stage">
-            <div class="radar-outer-ring"></div>
-            <div class="radar-beam"></div>
-            <div class="radar-inner-glow"></div>
-            
-            <!-- Center: Smoothly Cycling 3D Food Icons -->
-            <div class="food-cycler-container">
-                <div class="food-icon-item fi-1">🥗</div>
-                <div class="food-icon-item fi-2">🥑</div>
-                <div class="food-icon-item fi-3">🍗</div>
-                <div class="food-icon-item fi-4">🍣</div>
-                <div class="food-icon-item fi-5">🥪</div>
-                <div class="food-icon-item fi-6">🍳</div>
-            </div>
-        </div>
-
-        <!-- Pipeline Status Badge -->
-        <div class="loader-badge-tag">
-            <span class="pulse-dot-loader"></span>
-            <span>AI INFERENCE ENGINE ACTIVE</span>
-        </div>
-
-        {portion_badge}
-
-        <div class="loader-main-title">DIET ENGINE NEURAL RECOGNITION</div>
-
-        <!-- Dynamic Live Status Text -->
-        <div class="loader-status-container">
-            <div class="loader-status-text">{status_text}</div>
-        </div>
-
-        <!-- Glowing Sweeping Neon Progress Bar -->
-        <div class="loader-progress-track">
-            <div class="loader-progress-bar"></div>
-        </div>
-
-        <!-- Continuously Cycling Website Phrases -->
-        <div class="rotator-wrapper">
-            <div class="rotator-text-item ri-1">🔍 YOLOv8 isolating food portions & geometry...</div>
-            <div class="rotator-text-item ri-2">🤖 Gemini Vision evaluating ingredient density & volume...</div>
-            <div class="rotator-text-item ri-3">🥑 Calculating Protein, Carbohydrates & Healthy Fats...</div>
-            <div class="rotator-text-item ri-4">🔬 Assessing surface charring, freshness & cooking quality...</div>
-            <div class="rotator-text-item ri-5">⚡ Synthesizing personalized Diet Engine nutrition HUD...</div>
-        </div>
-
-        <!-- Bottom Telemetry Chips -->
-        <div class="loader-telemetry-row">
-            <div class="loader-telem-chip"><span style="color:#0284c7;">●</span> YOLOv8: ACTIVE</div>
-            <div class="loader-telem-chip"><span style="color:#00f2fe;">●</span> GEMINI: STREAMING</div>
-            <div class="loader-telem-chip"><span style="color:#10b981;">●</span> MACROS: CALIBRATING</div>
-        </div>
+        <div class="loader-heading">Analyzing your meal...</div>
+        <div class="loader-subtitle">Identifying portions and calculating macros</div>
     </div>
 </div>
 """
@@ -1480,13 +1309,13 @@ else:
     right_placeholder = main_col2.empty()
 
     if uploaded_file is None:
-        # Show good static showcase image on right hand side initially
+        # Show text-based overview card on right hand side initially
         right_placeholder.html(get_standby_static_card_html())
     else:
         image = Image.open(uploaded_file).convert("RGB")
 
-        # Step 1: Initial scanning state inside right_placeholder
-        right_placeholder.html(get_loader_html("🔍 Localizing meal portions & food boundaries with YOLOv8..."))
+        # Minimalist pulsing emoji loader inside right_placeholder
+        right_placeholder.html(get_loader_html())
 
         # 1. Detection
         raw_boxes, raw_crops = detector.detect(image)
@@ -1495,19 +1324,15 @@ else:
 
         num_crops = len(crops)
         if num_crops == 0:
-            right_placeholder.html(get_loader_html("Whole plate captured. Querying Gemini Vision AI for macro breakdown...", current_portion=1, total_portions=1))
             crops = [image]
             boxes = [{'box': [0, 0, image.width, image.height], 'conf': 0.95}]
             num_crops = 1
-        else:
-            right_placeholder.html(get_loader_html(f"🎯 YOLOv8 detected {num_crops} portion{'s' if num_crops != 1 else ''}. Initializing Gemini Vision AI...", current_portion=1, total_portions=num_crops))
 
         # 3. LLM Vision Analysis on all detected crops
         items_data = []
         item_names_for_overlay = []
 
         for idx, crop in enumerate(crops):
-            right_placeholder.html(get_loader_html(f"🤖 Gemini Vision analyzing Portion {idx + 1} of {num_crops}: Computing Calories & Macronutrients...", current_portion=idx + 1, total_portions=num_crops))
             try:
                 item_info = classifier.predict(crop)
                 items_data.append(item_info)
@@ -1530,9 +1355,6 @@ else:
                 }
                 items_data.append(fallback_item)
                 item_names_for_overlay.append("Food Portion")
-
-        # Final step before display
-        right_placeholder.html(get_loader_html("⚡ Synthesizing Nutritional Profile & Generating Diet Engine HUD..."))
 
         # Cleanly remove the loader from right_placeholder to reveal the results
         right_placeholder.empty()
