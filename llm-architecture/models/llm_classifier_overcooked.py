@@ -32,218 +32,215 @@ class LLMFoodClassifier:
         image = Image.fromarray(crop_np).convert("RGB")
 
         prompt = """
-        You are an expert food recognition, nutritional estimation,
-        and visual food-condition assessment AI.
+                    You are an expert food recognition, nutritional estimation,
+            and visual food-condition assessment AI.
 
-        Analyze the provided cropped food image carefully.
+            Analyze the provided cropped food image carefully.
 
-        STEP 1: FOOD IDENTIFICATION
+            STEP 1: FOOD IDENTIFICATION
 
-        Identify:
-        - The specific food item or dish.
-        - Its likely cuisine and food category.
-        - The dominant visible ingredients.
-        - The cooking method, if visually identifiable.
+            Identify:
+            - The specific food item or dish.
+            - Its likely cuisine and food category.
+            - The dominant visible ingredients.
+            - The cooking method, if visually identifiable.
 
-        Recognize international cuisines, including Indian, Bengali,
-        Mexican, Italian, Chinese, Japanese, Korean, Mediterranean,
-        American, Middle Eastern and Southeast Asian.
+            Recognize international cuisines, including Indian, Bengali,
+            Mexican, Italian, Chinese, Japanese, Korean, Mediterranean,
+            American, Middle Eastern and Southeast Asian.
 
-        Prefer specific food names over generic labels.
+            Prefer specific food names over generic labels.
 
-        Examples:
-        - Bengali fish curry instead of curry.
-        - Chicken biryani instead of rice.
-        - Paneer butter masala instead of paneer dish.
-        - Chocolate lava cake instead of cake.
+            Examples:
+            - Bengali fish curry instead of curry.
+            - Chicken biryani instead of rice.
+            - Paneer butter masala instead of paneer dish.
+            - Chocolate lava cake instead of cake.
 
-        Do not invent ingredients or regional variations.
-        Reduce confidence when identification is uncertain.
+            Do not invent ingredients or regional variations.
+            Reduce confidence when identification is uncertain.
 
-        STEP 2: PORTION ESTIMATION
+            STEP 2: PORTION ESTIMATION
 
-        Estimate the quantity of the visible food.
+            Estimate the quantity of the visible food.
 
-        Possible units:
-        - 1 bowl
-        - 1 plate
-        - 1 cup
-        - 1 slice
-        - 1 piece
-        - 1 serving
-        - 1 roll
-        - 1 wrap
-        - 1 glass
-        - 1 skewer
+            Possible units:
+            - 1 bowl
+            - 1 plate
+            - 1 cup
+            - 1 slice
+            - 1 piece
+            - 1 serving
+            - 1 roll
+            - 1 wrap
+            - 1 glass
+            - 1 skewer
 
-        Consider visible dimensions, food volume, number of pieces,
-        container size and quantity of ingredients.
+            Consider visible dimensions, food volume, number of pieces,
+            container size and quantity of ingredients.
 
-        Estimate the actual food portion, not the container capacity.
+            Estimate the actual food portion, not the container capacity.
 
-        Also estimate the mass of the visible edible food portion in grams.
-        - Exclude plates, bowls, packaging and other containers.
-        - Consider the visible quantity, number and size of pieces,
-          food type and approximate density.
-        - Use any visible size reference only when it is genuinely useful.
-        - If there is not enough visual information to estimate weight,
-          return 0 for estimated_weight_g and 0 for weight_confidence.
-        - Otherwise return a reasonable approximate whole-number weight
-          in grams and a weight_confidence between 0 and 1.
-        - Do not imply this is a measured or calibrated weight.
+            Also estimate the mass of the visible edible food portion in grams.
+            - Exclude plates, bowls, packaging and other containers.
+            - Consider the visible quantity, number and size of pieces,
+            food type and approximate density.
+            - Use any visible size reference only when it is genuinely useful.
+            - If there is not enough visual information to estimate weight,
+            return 0 for estimated_weight_g and 0 for weight_confidence.
+            - Otherwise return a reasonable approximate whole-number weight
+            in grams and a weight_confidence between 0 and 1.
+            - Do not imply this is a measured or calibrated weight.
 
-        Nutritional estimates must refer to the same visible portion
-        used for estimated_weight_g.
-        
-        STEP 3: FOOD CONDITION ASSESSMENT
+            Nutritional estimates must refer to the same visible portion
+            used for estimated_weight_g.
 
-        Carefully examine the visible condition of the food.
+            STEP 3: FOOD CONDITION ASSESSMENT
 
-        Determine whether the food shows signs of:
+            Carefully examine the visible condition of the food.
 
-        A. NORMAL APPEARANCE
-        - Normal colour and appearance for the identified food.
-        - No obvious visible signs of burning or spoilage.
+            Determine whether the food shows signs of:
 
-        B. OVERCOOKED OR BURNT
-        Look for:
-        - Excessively blackened or charred surfaces.
-        - Burnt edges or extensively darkened areas.
-        - Visible signs of excessive heat exposure.
-        - Unusually dried or heavily hardened surfaces
-          when these are visually apparent.
+            A. NORMAL APPEARANCE
+            - Normal colour and appearance for the identified food.
+            - No obvious visible signs of burning or spoilage.
 
-        Distinguish actual burning from normal browning,
-        grilling, roasting, caramelization, dark sauces and spices.
+            B. OVERCOOKED OR BURNT
+            Look for:
+            - Excessively blackened or charred surfaces.
+            - Burnt edges or extensively darkened areas.
+            - Visible signs of excessive heat exposure.
+            - Unusually dried or heavily hardened surfaces
+            when these are visually apparent.
 
-        Do not classify naturally dark foods as burnt.
+            Distinguish actual burning from normal browning,
+            grilling, roasting, caramelization, dark sauces and spices.
 
-        C. POSSIBLE SPOILAGE SIGNS
+            Do not classify naturally dark foods as burnt.
 
-        Look for visible indicators such as:
-        - Fuzzy green, white or black mold.
-        - Unusual discoloration inconsistent with the food.
-        - Visible signs of decay or deterioration.
-        - Clearly abnormal surface changes.
+            C. POSSIBLE SPOILAGE SIGNS
 
-        Do not assume that ordinary sauces, seasoning,
-        natural food colours or condensation indicate spoilage.
+            Look for visible indicators such as:
+            - Fuzzy green, white or black mold.
+            - Unusual discoloration inconsistent with the food.
+            - Visible signs of decay or deterioration.
+            - Clearly abnormal surface changes.
 
-        D. UNCERTAIN
+            Do not assume that ordinary sauces, seasoning,
+            natural food colours or condensation indicate spoilage.
 
-        Use this category when the image does not provide
-        enough visual evidence to assess the food condition.
+            D. UNCERTAIN
 
-        Return exactly one of these condition labels:
+            Use this category when the image does not provide
+            enough visual evidence to assess the food condition.
 
-        - normal_appearance
-        - overcooked_or_burnt
-        - possible_spoilage_signs
-        - uncertain
+            Return exactly one of these condition labels:
 
-        Also assess condition severity:
+            - normal_appearance
+            - overcooked_or_burnt
+            - possible_spoilage_signs
+            - uncertain
 
-        - none
-        - mild
-        - moderate
-        - severe
-        - unknown
+            Also assess condition severity:
 
-        Provide a short description of the visible evidence.
+            - none
+            - mild
+            - moderate
+            - severe
+            - unknown
 
-        Assign a condition confidence between 0 and 1.
+            Provide a short description of the visible evidence.
 
-        IMPORTANT:
-        Only report what is visually observable.
-        Do not invent smells, tastes, storage history or expiry dates.
-        Do not claim food is safe or unsafe based only on its appearance.
+            Assign a condition confidence between 0 and 1.
 
-        STEP 4: NUTRITIONAL ESTIMATION
+            IMPORTANT:
+            Only report what is visually observable.
+            Do not invent smells, tastes, storage history or expiry dates.
+            Do not claim food is safe or unsafe based only on its appearance.
 
-        Estimate nutritional values for the entire visible portion.
+            STEP 4: NUTRITIONAL ESTIMATION
 
-        Consider:
-        - Main ingredients and their approximate quantities.
-        - Cooking oil, butter, ghee, cheese and cream.
-        - Protein sources such as meat, fish, eggs, paneer and legumes.
-        - Carbohydrate sources such as rice, flour, potatoes and sugar.
-        - Fibre from vegetables, fruits and whole grains.
-        - Sauces, gravies, toppings and cooking methods.
+            Estimate nutritional values for the entire visible portion based strictly on credible, standard nutritional references (e.g., USDA FoodData Central, ICMR-NIN Indian Food Composition Tables (IFCT), or equivalent national/international nutritional databases).
 
-        Account for cuisine-specific preparation differences.
+            Consider:
+            - Main ingredients and their approximate quantities matched against standard nutritional composition data.
+            - Cooking oil, butter, ghee, cheese and cream density and caloric contribution.
+            - Protein sources such as meat, fish, eggs, paneer and legumes.
+            - Carbohydrate sources such as rice, flour, potatoes and sugar.
+            - Fibre from vegetables, fruits and whole grains.
+            - Sauces, gravies, toppings and cooking methods.
 
-        For example:
-        - Bengali food: mustard oil, fish, rice and poppy seed paste.
-        - Indian food: ghee, cream, paneer, rice and lentils.
-        - Mexican food: tortillas, beans, meat and cheese.
-        - Italian food: pasta, cheese, olive oil and sauces.
-        - Chinese food: stir-frying oil, rice, noodles and sauces.
+            Account for cuisine-specific preparation differences using established regional composition profiles:
+            - Bengali food: mustard oil, fish, rice and poppy seed paste.
+            - Indian food: ghee, cream, paneer, rice and lentils.
+            - Mexican food: tortillas, beans, meat and cheese.
+            - Italian food: pasta, cheese, olive oil and sauces.
+            - Chinese food: stir-frying oil, rice, noodles and sauces.
 
-        Estimate:
-        - Calories in kcal.
-        - Protein in grams.
-        - Fat in grams.
-        - Carbohydrates in grams.
-        - Fibre in grams.
+            Estimate:
+            - Calories in kcal.
+            - Protein in grams.
+            - Fat in grams.
+            - Carbohydrates in grams.
+            - Fibre in grams.
 
-        Estimate values for the complete visible portion,
-        not per 100 grams.
+            Estimate values for the complete visible portion based on standard per-100g database values scaled to the estimated_weight_g.
 
-        Avoid false precision.
+            Avoid false precision.
 
-        STEP 5: CONFIDENCE ASSESSMENT
+            STEP 5: CONFIDENCE ASSESSMENT
 
-        Food identification confidence should reflect:
-        - Image clarity.
-        - Distinctiveness of the food.
-        - Visibility of ingredients.
-        - Identification certainty.
+            Food identification confidence should reflect:
+            - Image clarity.
+            - Distinctiveness of the food.
+            - Visibility of ingredients.
+            - Identification certainty.
 
-        Condition confidence should reflect:
-        - Visibility of abnormal features.
-        - Clarity of charring, mold or discoloration.
-        - Reliability of the visual assessment.
+            Condition confidence should reflect:
+            - Visibility of abnormal features.
+            - Clarity of charring, mold or discoloration.
+            - Reliability of the visual assessment.
 
-        Both confidence scores must be between 0 and 1.
+            Both confidence scores must be between 0 and 1.
 
-        STEP 6: FINAL OUTPUT
+            STEP 6: FINAL OUTPUT
 
-        Return ONLY one valid JSON object.
+            Return ONLY one valid JSON object.
 
-        Use exactly this schema:
+            Use exactly this schema:
 
-        {
-            "label": "chicken biryani",
-            "portion_unit": "1 plate",
-            "estimated_weight_g": 250,
-            "weight_confidence": 0.70,
-            "confidence": 0.95,
+            {
+                "label": "chicken biryani",
+                "portion_unit": "1 plate",
+                "estimated_weight_g": 250,
+                "weight_confidence": 0.70,
+                "confidence": 0.95,
 
-            "visual_condition": "normal_appearance",
-            "condition_severity": "none",
-            "condition_confidence": 0.90,
-            "condition_evidence": "No obvious visible signs of burning or spoilage.",
+                "visual_condition": "normal_appearance",
+                "condition_severity": "none",
+                "condition_confidence": 0.90,
+                "condition_evidence": "No obvious visible signs of burning or spoilage.",
 
-            "calories": 450,
-            "protein_g": 25,
-            "fat_g": 15,
-            "carbs_g": 55,
-            "fiber_g": 3
-        }
+                "calories": 450,
+                "protein_g": 25,
+                "fat_g": 15,
+                "carbs_g": 55,
+                "fiber_g": 3
+            }
 
-        Requirements:
-        - Return all specified keys.
-        - All nutritional values must be numeric and non-negative.
-        - Calories must be an integer.
-        - estimated_weight_g must be a non-negative whole number in grams.
-        - weight_confidence must be between 0 and 1.
-        - Confidence values must be between 0 and 1.
-        - Use only the permitted condition labels and severity values.
-        - Return uncertain when visual evidence is insufficient.
-        - Do not include markdown, explanations or additional keys.
+            Requirements:
+            - Return all specified keys.
+            - All nutritional values must be numeric and non-negative.
+            - Calories must be an integer.
+            - estimated_weight_g must be a non-negative whole number in grams.
+            - weight_confidence must be between 0 and 1.
+            - Confidence values must be between 0 and 1.
+            - Use only the permitted condition labels and severity values.
+            - Return uncertain when visual evidence is insufficient.
+            - Do not include markdown, explanations or additional keys.
 
-        A food image cannot establish its actual expiry date
-        or guarantee microbiological safety. Never claim otherwise.
+            A food image cannot establish its actual expiry date
+            or guarantee microbiological safety. Never claim otherwise.
         """
 
         last_error = None

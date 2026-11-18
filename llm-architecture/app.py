@@ -1339,22 +1339,22 @@ else:
                 item_names_for_overlay.append(item_info.get("label", "Food Item"))
             except Exception as e:
                 fallback_item = {
-                    "label": "Food Portion",
-                    "confidence": 0.8,
-                    "calories": 150,
-                    "protein": 5,
-                    "fat": 5,
-                    "carbs": 20,
-                    "fiber": 2,
-                    "estimated_weight_g": 100,
-                    "weight_confidence": 0.5,
+                    "label": "Food not detected",
+                    "confidence": 0,
+                    "calories": 0,
+                    "protein": 0,
+                    "fat": 0,
+                    "carbs": 0,
+                    "fiber": 0,
+                    "estimated_weight_g": 0,
+                    "weight_confidence": 0,
                     "visual_condition": "normal_appearance",
                     "condition_severity": "none",
-                    "condition_confidence": 0.7,
+                    "condition_confidence": 0,
                     "condition_evidence": "Analyzed with default parameters."
                 }
                 items_data.append(fallback_item)
-                item_names_for_overlay.append("Food Portion")
+                item_names_for_overlay.append("Food not detected")
 
         # Cleanly remove the loader from right_placeholder to reveal the results
         right_placeholder.empty()
